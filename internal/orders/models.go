@@ -25,7 +25,7 @@ type OrderRequested struct {
 
 // MessageType returns the Kafka topic for order-requested events.
 func (OrderRequested) MessageType() string {
-	return environments.GetString("", "", "KAFKA_TOPIC_ORDER_REQUESTED", "")
+	return environments.GetString("KAFKA_TOPIC_ORDER_REQUESTED", "")
 }
 
 // OrderAccepted is the Kafka event emitted when an order is accepted.
@@ -40,7 +40,7 @@ type OrderAccepted struct {
 // MessageType returns the order accepted event type for Kafka (no error).
 // Satisfies kafka.Message interface.
 func (OrderAccepted) MessageType() string {
-	return environments.GetString("", "", "KAFKA_TOPIC_ORDER_ACCEPTED", "")
+	return environments.GetString("KAFKA_TOPIC_ORDER_ACCEPTED", "")
 }
 
 // OrderRequestedInput contains data needed to request an order.

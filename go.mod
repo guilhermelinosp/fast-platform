@@ -110,6 +110,8 @@ require (
 	go.opentelemetry.io/otel/trace v1.46.0
 )
 
+replace github.com/guilhermelinosp/hellnet-lib-environments => /Users/guilhermelino/repositories/hellnet-lib-environments
+
 replace github.com/guilhermelinosp/hellnet-lib-telemetry => /Users/guilhermelino/repositories/hellnet-lib-telemetry
 
 replace github.com/guilhermelinosp/hellnet-lib-cache => /Users/guilhermelino/repositories/hellnet-lib-cache

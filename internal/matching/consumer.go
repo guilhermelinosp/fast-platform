@@ -38,7 +38,7 @@ func NewConsumer(ctx context.Context, ops telemetry.Client, service MatchService
 	if err != nil {
 		return nil, err
 	}
-	if err := consumer.Configure(handler, kafka.HandlerSpec{Group: environments.GetString("", "", "KAFKA_MATCHING_CONSUMER_GROUP", "fast-matching")}); err != nil {
+	if err := consumer.Configure(handler, kafka.HandlerSpec{Group: environments.GetString("KAFKA_MATCHING_CONSUMER_GROUP", "fast-matching")}); err != nil {
 		return nil, err
 	}
 	return consumer, nil

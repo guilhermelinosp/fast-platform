@@ -169,9 +169,9 @@ func main() {
 	}
 	defer func() { _ = ops.Close() }()
 
-	baseURL := environments.GetString("", "", "SOCKET_URL", "ws://localhost:8080")
-	driversNS := environments.GetString("", "", "SOCKET_DRIVERS_NAMESPACE", "/drivers")
-	ridersNS := environments.GetString("", "", "SOCKET_RIDERS_NAMESPACE", "/riders")
+	baseURL := environments.GetString("SOCKET_URL", "ws://localhost:8080")
+	driversNS := environments.GetString("SOCKET_DRIVERS_NAMESPACE", "/drivers")
+	ridersNS := environments.GetString("SOCKET_RIDERS_NAMESPACE", "/riders")
 
 	// Driver client
 	ops.Info("=== Testing Driver Client ===", "namespace", driversNS, "url", baseURL)

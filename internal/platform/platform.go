@@ -43,20 +43,20 @@ type Config struct {
 
 // NewConfig builds runtime configuration from environment variables.
 func NewConfig() (*Config, error) {
-	env := strings.TrimSpace(environments.GetString("", "", "HELLNET_ENVIRONMENT", "Development"))
+	env := strings.TrimSpace(environments.GetString("HELLNET_ENVIRONMENT", "Development"))
 	c := &Config{
-		Name:               strings.TrimSpace(environments.GetString("", "", "HELLNET_SERVICE", "")),
+		Name:               strings.TrimSpace(environments.GetString("HELLNET_SERVICE", "")),
 		Env:                env,
-		Port:               environments.GetString("", "", "HELLNET_PORT", "8080"),
+		Port:               environments.GetString("HELLNET_PORT", "8080"),
 		ShutdownTimeout:    environments.GetDuration("SHUTDOWN_TIMEOUT", "10s"),
 		ReadTimeout:        environments.GetDuration("READ_TIMEOUT", "15s"),
 		WriteTimeout:       environments.GetDuration("WRITE_TIMEOUT", "30s"),
 		IdleTimeout:        environments.GetDuration("IDLE_TIMEOUT", "120s"),
 		ReadHeaderTimeout:  environments.GetDuration("READ_HEADER_TIMEOUT", "10s"),
-		CORSAllowedOrigins: list(environments.GetString("", "", "CORS_ALLOWED_ORIGINS", "")),
+		CORSAllowedOrigins: environments.GetSlice("CORS_ALLOWED_ORIGINS"),
 		BodyLimit:          int64(environments.GetInt("BODY_LIMIT", "1048576")),
 		ReleaseMode:        !strings.EqualFold(env, "Development"),
-		TrustedProxies:     list(environments.GetString("", "", "TRUSTED_PROXIES", "")),
+		TrustedProxies:     environments.GetSlice("TRUSTED_PROXIES"),
 	}
 	if err := c.Validate(); err != nil {
 		return nil, err
@@ -80,16 +80,6 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("config: BODY_LIMIT must be positive")
 	}
 	return nil
-}
-
-func list(raw string) []string {
-	var out []string
-	for item := range strings.SplitSeq(raw, ",") {
-		if item = strings.TrimSpace(item); item != "" {
-			out = append(out, item)
-		}
-	}
-	return out
 }
 
 // ─────────────────────────────────────────────────────────────────────────
