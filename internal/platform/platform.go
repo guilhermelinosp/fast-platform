@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/guilhermelinosp/hellnet-lib-environments/environments"
+	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 )
 
@@ -43,20 +43,20 @@ type Config struct {
 
 // NewConfig builds runtime configuration from environment variables.
 func NewConfig() (*Config, error) {
-	env := strings.TrimSpace(environments.GetString("HELLNET_ENVIRONMENT", "Development"))
+	environmentName := strings.TrimSpace(env.String("HELLNET_ENVIRONMENT", "Development"))
 	c := &Config{
-		Name:               strings.TrimSpace(environments.GetString("HELLNET_SERVICE", "")),
-		Env:                env,
-		Port:               environments.GetString("HELLNET_PORT", "8080"),
-		ShutdownTimeout:    environments.GetDuration("SHUTDOWN_TIMEOUT", "10s"),
-		ReadTimeout:        environments.GetDuration("READ_TIMEOUT", "15s"),
-		WriteTimeout:       environments.GetDuration("WRITE_TIMEOUT", "30s"),
-		IdleTimeout:        environments.GetDuration("IDLE_TIMEOUT", "120s"),
-		ReadHeaderTimeout:  environments.GetDuration("READ_HEADER_TIMEOUT", "10s"),
-		CORSAllowedOrigins: environments.GetSlice("CORS_ALLOWED_ORIGINS"),
-		BodyLimit:          int64(environments.GetInt("BODY_LIMIT", "1048576")),
-		ReleaseMode:        !strings.EqualFold(env, "Development"),
-		TrustedProxies:     environments.GetSlice("TRUSTED_PROXIES"),
+		Name:               strings.TrimSpace(env.String("HELLNET_SERVICE", "")),
+		Env:                environmentName,
+		Port:               env.String("HELLNET_PORT", "8080"),
+		ShutdownTimeout:    env.Duration("SHUTDOWN_TIMEOUT", 10*time.Second),
+		ReadTimeout:        env.Duration("READ_TIMEOUT", 15*time.Second),
+		WriteTimeout:       env.Duration("WRITE_TIMEOUT", 30*time.Second),
+		IdleTimeout:        env.Duration("IDLE_TIMEOUT", 120*time.Second),
+		ReadHeaderTimeout:  env.Duration("READ_HEADER_TIMEOUT", 10*time.Second),
+		CORSAllowedOrigins: env.Slice("CORS_ALLOWED_ORIGINS"),
+		BodyLimit:          int64(env.Int("BODY_LIMIT", 1048576)),
+		ReleaseMode:        !strings.EqualFold(environmentName, "Development"),
+		TrustedProxies:     env.Slice("TRUSTED_PROXIES"),
 	}
 	if err := c.Validate(); err != nil {
 		return nil, err

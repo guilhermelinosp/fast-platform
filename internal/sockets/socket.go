@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
-	"github.com/guilhermelinosp/hellnet-lib-environments/environments"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"github.com/zishang520/socket.io/servers/socket/v3"
 )
@@ -27,8 +27,8 @@ type Server struct {
 // order room with the "order.subscribe" event.
 func NewServer(ops telemetry.Client) *Server {
 	io := socket.NewServer(nil, nil)
-	drivers := io.Of(environments.GetString("SOCKET_DRIVERS_NAMESPACE", ""), nil)
-	riders := io.Of(environments.GetString("SOCKET_RIDERS_NAMESPACE", ""), nil)
+	drivers := io.Of(env.String("SOCKET_DRIVERS_NAMESPACE", ""), nil)
+	riders := io.Of(env.String("SOCKET_RIDERS_NAMESPACE", ""), nil)
 
 	_ = riders.On("connection", func(args ...any) {
 		client, ok := args[0].(*socket.Socket)
@@ -59,7 +59,7 @@ func (s *Server) Handler() http.Handler { return s.io.ServeHandler(nil) }
 // EmitRequested broadcasts an order request to connected driver applications.
 func (s *Server) EmitRequested(event orders.OrderRequested) error {
 	if s.ops == nil {
-		return s.drivers.Emit(environments.GetString("KAFKA_TOPIC_ORDER_REQUESTED", ""), event)
+		return s.drivers.Emit(env.String("KAFKA_TOPIC_ORDER_REQUESTED", ""), event)
 	}
 	return s.ops.WithSpan("socket.emit.order_requested", func(ctx context.Context) error {
 		s.ops.Info("socket.emit.order_requested",
@@ -68,14 +68,14 @@ func (s *Server) EmitRequested(event orders.OrderRequested) error {
 			"event_id", event.EventID,
 			"event_version", event.EventVersion,
 		)
-		return s.drivers.Emit(environments.GetString("KAFKA_TOPIC_ORDER_REQUESTED", ""), event)
+		return s.drivers.Emit(env.String("KAFKA_TOPIC_ORDER_REQUESTED", ""), event)
 	})
 }
 
 // EmitAccepted sends acceptance to the mobile client subscribed to this order.
 func (s *Server) EmitAccepted(event orders.OrderAccepted) error {
 	if s.ops == nil {
-		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(environments.GetString("KAFKA_TOPIC_ORDER_ACCEPTED", ""), event)
+		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(env.String("KAFKA_TOPIC_ORDER_ACCEPTED", ""), event)
 	}
 	return s.ops.WithSpan("socket.emit.order_accepted", func(ctx context.Context) error {
 		s.ops.Info("socket.emit.order_accepted",
@@ -85,7 +85,7 @@ func (s *Server) EmitAccepted(event orders.OrderAccepted) error {
 			"event_version", event.EventVersion,
 			"room", orderRoom(event.OrderID),
 		)
-		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(environments.GetString("KAFKA_TOPIC_ORDER_ACCEPTED", ""), event)
+		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(env.String("KAFKA_TOPIC_ORDER_ACCEPTED", ""), event)
 	})
 }
 

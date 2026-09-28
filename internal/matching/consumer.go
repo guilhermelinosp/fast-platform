@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
-	"github.com/guilhermelinosp/hellnet-lib-environments/environments"
 	"github.com/guilhermelinosp/hellnet-lib-kafka/kafka"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -38,7 +38,7 @@ func NewConsumer(ctx context.Context, ops telemetry.Client, service MatchService
 	if err != nil {
 		return nil, err
 	}
-	if err := consumer.Configure(handler, kafka.HandlerSpec{Group: environments.GetString("KAFKA_MATCHING_CONSUMER_GROUP", "fast-matching")}); err != nil {
+	if err := consumer.Configure(handler, kafka.HandlerSpec{Group: env.String("KAFKA_MATCHING_CONSUMER_GROUP", "fast-matching")}); err != nil {
 		return nil, err
 	}
 	return consumer, nil

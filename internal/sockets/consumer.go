@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
-	"github.com/guilhermelinosp/hellnet-lib-environments/environments"
 	"github.com/guilhermelinosp/hellnet-lib-kafka/kafka"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -14,11 +14,11 @@ import (
 )
 
 func requestedHandlerSpec() kafka.HandlerSpec {
-	return kafka.HandlerSpec{Group: environments.GetString("KAFKA_TOPIC_ORDER_REQUESTED", "br.com.hellnet.fast.order.requested.v1")}
+	return kafka.HandlerSpec{Group: env.String("KAFKA_TOPIC_ORDER_REQUESTED", "br.com.hellnet.fast.order.requested.v1")}
 }
 
 func acceptedHandlerSpec() kafka.HandlerSpec {
-	return kafka.HandlerSpec{Group: environments.GetString("KAFKA_TOPIC_ORDER_ACCEPTED", "br.com.hellnet.fast.order.accepted.v1")}
+	return kafka.HandlerSpec{Group: env.String("KAFKA_TOPIC_ORDER_ACCEPTED", "br.com.hellnet.fast.order.accepted.v1")}
 }
 
 // RequestedEmitter publishes requested riders to connected driver clients.

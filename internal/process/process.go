@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/guilhermelinosp/hellnet-lib-environments/environments"
+	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 )
 
 // Context creates the process context and loads the process-local environment.
@@ -15,7 +15,7 @@ import (
 // environment and never own process lifecycle.
 func Context() (context.Context, context.CancelFunc, error) {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	if err := environments.LoadDotEnv(); err != nil {
+	if err := env.LoadDotEnv(); err != nil {
 		stop()
 		return nil, nil, fmt.Errorf("load environment: %w", err)
 	}
