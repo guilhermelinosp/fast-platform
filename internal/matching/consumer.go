@@ -5,10 +5,12 @@ import (
 	"net/http"
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
-	"github.com/guilhermelinosp/hellnet-lib-api/errors"
+	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-environments/environments"
 	"github.com/guilhermelinosp/hellnet-lib-kafka/kafka"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // MatchService matches an order to an available driver.
@@ -17,14 +19,29 @@ type MatchService interface {
 }
 
 // NewConsumer builds a Kafka consumer that matches incoming ride requests.
-func NewConsumer(ops telemetry.Client, service MatchService) (*kafka.Consumer[orders.OrderRequested], error) {
+func NewConsumer(ctx context.Context, ops telemetry.Client, service MatchService) (*kafka.Consumer[orders.OrderRequested], error) {
 	if service == nil {
-		return nil, errors.New(http.StatusInternalServerError, "INTERNAL", "matching: service is nil")
+		return nil, platform.NewError(http.StatusInternalServerError, "INTERNAL", "matching: service is nil")
 	}
 	handler := kafka.HandlerFunc[orders.OrderRequested](func(ctx context.Context, event orders.OrderRequested, _ kafka.Ctx) error {
-		return matchEvent(ctx, event, service)
+		// Correlaciona o consume do Kafka com um span OTel (kafka.consume),
+		// filho do ctx fornecido pelo consumidor.
+		if ops == nil {
+			return matchEvent(ctx, event, service)
+		}
+		return ops.Span(ctx, "kafka.consume.order_requested", func(ctx context.Context) error {
+			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID))
+			return matchEvent(ctx, event, service)
+		})
 	})
-	return kafka.NewConsumer(handler, kafka.HandlerSpec{Group: environments.Get("HELLNET_KAFKA_MATCHING_CONSUMER_GROUP", "fast-matching")})
+	consumer, err := kafka.NewConsumer[orders.OrderRequested](ctx, ops)
+	if err != nil {
+		return nil, err
+	}
+	if err := consumer.Configure(handler, kafka.HandlerSpec{Group: environments.GetString("KAFKA_MATCHING_CONSUMER_GROUP", "fast-matching")}); err != nil {
+		return nil, err
+	}
+	return consumer, nil
 }
 
 func matchEvent(ctx context.Context, event orders.OrderRequested, service MatchService) error {

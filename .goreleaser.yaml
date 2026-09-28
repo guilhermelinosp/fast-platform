@@ -64,6 +64,6 @@ release:
   # Releases are created by the reusable org workflow first; GoReleaser
   # uploads artifacts+checksums onto the SAME existing tag release.
   draft: false
-  mode: replace-existing
+  mode: keep-existing
   header: |
     ## golang-api-template {{ .Version }}

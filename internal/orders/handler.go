@@ -6,8 +6,8 @@ import (
 
 	"uuid"
 
-	"github.com/guilhermelinosp/hellnet-lib-api/api"
-	"github.com/guilhermelinosp/hellnet-lib-api/errors"
+	"github.com/gin-gonic/gin"
+	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 )
 
 // Handler exposes the rider HTTP routes.
@@ -33,22 +33,22 @@ func NewHandler(service interface {
 	return &Handler{service: service}
 }
 
-// Routes returns the rider routes.
-func (h *Handler) Routes() []api.Route {
-	return []api.Route{
-		{Method: http.MethodPost, Path: "/orders", Handler: api.HandlerFunc(h.request)},
-	}
+// Register mounts the rider routes on the gin engine.
+func (h *Handler) Register(r *gin.RouterGroup) {
+	r.POST("/orders", h.request)
 }
 
-func (h *Handler) request(ctx context.Context, req api.Request) (api.Response, error) {
+// request handles POST /api/v1/orders
+func (h *Handler) request(c *gin.Context) {
 	var in requestInput
-	if err := req.Bind(&in); err != nil {
-		return api.Response{}, err
+	if err := c.ShouldBindJSON(&in); err != nil {
+		platform.AbortError(c, platform.ValidationError("body", err.Error()))
+		return
 	}
 	if in.ID == "" {
 		in.ID = uuid.New().String()
 	}
-	riderID := req.Header("rider_id")
+	riderID := c.GetHeader("rider_id")
 	if riderID == "" {
 		riderID = in.RiderID
 	}
@@ -56,10 +56,12 @@ func (h *Handler) request(ctx context.Context, req api.Request) (api.Response, e
 		riderID = uuid.New().String()
 	}
 	if _, err := uuid.Parse(in.ID); err != nil {
-		return api.Response{}, errors.Validation("id", "must be a UUID")
+		platform.AbortError(c, platform.ValidationError("id", "must be a UUID"))
+		return
 	}
 	if _, err := uuid.Parse(riderID); err != nil {
-		return api.Response{}, errors.Validation("rider_id", "must be a UUID")
+		platform.AbortError(c, platform.ValidationError("rider_id", "must be a UUID"))
+		return
 	}
 	input := OrderRequestedInput{
 		ID:                   in.ID,
@@ -69,9 +71,10 @@ func (h *Handler) request(ctx context.Context, req api.Request) (api.Response, e
 		DestinationLatitude:  in.DestinationLatitude,
 		DestinationLongitude: in.DestinationLongitude,
 	}
-	order, err := h.service.Requested(ctx, input)
+	order, err := h.service.Requested(c.Request.Context(), input)
 	if err != nil {
-		return api.Response{}, err
+		platform.AbortError(c, err)
+		return
 	}
-	return api.JSON(http.StatusCreated, order), nil
+	c.JSON(http.StatusCreated, order)
 }

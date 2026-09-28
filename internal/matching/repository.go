@@ -3,7 +3,7 @@ package matching
 import (
 	"context"
 
-	"github.com/guilhermelinosp/hellnet-lib-api/errors"
+	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
 )
 
@@ -58,14 +58,14 @@ func (r *Database) Match(ctx context.Context, orderID string) (Offer, error) {
 			return err
 		}
 		if !found {
-			return errors.New(503, "NO_DRIVER_AVAILABLE", "matching: no driver available")
+			return platform.NewError(503, "NO_DRIVER_AVAILABLE", "matching: no driver available")
 		}
 		n, err := execute(`INSERT INTO ride_offers (id, ride_id, driver_id, status, created_at) SELECT gen_random_uuid(), $1, $2, 'pending', now() WHERE NOT EXISTS (SELECT 1 FROM ride_offers WHERE ride_id = $1)`, orderID, driverID)
 		if err != nil {
 			return err
 		}
 		if n == 0 {
-			return errors.New(409, "RIDE_ALREADY_MATCHED", "matching: ride already matched")
+			return platform.NewError(409, "RIDE_ALREADY_MATCHED", "matching: ride already matched")
 		}
 		offer = Offer{OrderID: orderID, DriverID: driverID, Status: "pending"}
 		return nil

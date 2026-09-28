@@ -46,7 +46,7 @@ redaction are **not** re-implemented here by design.
 git clone https://github.com/<you>/my-project && cd my-project
 
 # 2. Configure (optional locally!):
-cp .env.example .env          # APP_* and/or HELLNET_TELEMETRY_*
+cp .env.example .env          # APP_* and/or TELEMETRY_*
 
 # 3. Verify everything works:
 make test
@@ -61,7 +61,7 @@ curl -s 'localhost:8080/api/v1/hello?name=you'
 
 No collector? Local structured logging and Prometheus `/metrics` remain active;
 only remote OTLP export and profiling stay off. Add a
-`HELLNET_TELEMETRY_ENDPOINT` to `.env` or the process environment to enable
+`TELEMETRY_ENDPOINT` to `.env` or the process environment to enable
 remote logs, metrics, traces, and profiling without changing application code.
 
 ---
@@ -138,9 +138,9 @@ Documented with the library's own conventions; **never mirrored into `APP_*`**:
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `HELLNET_TELEMETRY_SERVICE` | required | Service identifier reported everywhere |
-| `HELLNET_TELEMETRY_ENDPOINT` | required for remote export | OTLP base URL incl. port (e.g. `http://alloy.monitoring:4318`) |
-| `HELLNET_TELEMETRY_ENVIRONMENT` | optional | Deployment environment resource attribute |
+| `TELEMETRY_SERVICE` | required | Service identifier reported everywhere |
+| `TELEMETRY_ENDPOINT` | required for remote export | OTLP base URL incl. port (e.g. `http://alloy.monitoring:4318`) |
+| `TELEMETRY_ENVIRONMENT` | optional | Deployment environment resource attribute |
 
 The library also accepts the legacy `HELLNET_*` names as fallback. With no
 endpoint, OTLP export is disabled while stdout logs and `/metrics` stay active.
@@ -157,17 +157,17 @@ Kafka directly.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `HELLNET_KAFKA_DRIVER_BFF_CONSUMER_GROUP` | `fast-driver-bff` | Dedicated group; never share the matching group |
+| `KAFKA_DRIVER_BFF_CONSUMER_GROUP` | `fast-driver-bff` | Dedicated group; never share the matching group |
 | `FAST_NOTIFICATION_WEBHOOK_URL` | *(disabled)* | Absolute `http`/`https` endpoint; enables the notification consumer |
 | `FAST_NOTIFICATION_WEBHOOK_SECRET` | *(required with URL)* | HMAC-SHA256 signing secret |
 | `FAST_NOTIFICATION_WEBHOOK_TIMEOUT` | `5s` | Per-attempt HTTP timeout |
 | `FAST_NOTIFICATION_WEBHOOK_MAX_RETRIES` | `3` | Retries after the initial request, maximum `10` |
 | `FAST_NOTIFICATION_WEBHOOK_BACKOFF` | `250ms` | Exponential retry backoff, maximum `30s` |
 
-`HELLNET_KAFKA_TOPIC_RIDE_REQUESTED` is unchanged. Its current default is
+`KAFKA_TOPIC_RIDE_REQUESTED` is unchanged. Its current default is
 `fast-ride-requested.v1`; when set (for example to
 `fast.ride.requested.v1` in `cmd/api/.env`), the consumer uses that exact topic.
-`HELLNET_KAFKA_TOPIC_PREFIX`, when used, is resolved by the Kafka library in
+`KAFKA_TOPIC_PREFIX`, when used, is resolved by the Kafka library in
 the same way for the producer and consumer.
 
 #### Webhook contract
@@ -325,7 +325,7 @@ single static binary. Dev tools are absent from the runtime image by design.
 1. `Use this template` on GitHub → clone.
 2. Search-and-replace module name `guilhermelinosp/golang-api-template` in
    `go.mod` + imports.
-3. Rename `HELLNET_TELEMETRY_SERVICE` value wherever you configure it
+3. Rename `TELEMETRY_SERVICE` value wherever you configure it
    (`.env.example`, your deployment platform of choice).
 4. Delete `internal/hello/*`, its registration lines in `cmd/api/main.go`,
    and the `/api/v1` paths in `openapi/openapi.yaml`.

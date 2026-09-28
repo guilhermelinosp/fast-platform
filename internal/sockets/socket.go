@@ -3,6 +3,7 @@ package sockets
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -26,8 +27,8 @@ type Server struct {
 // order room with the "order.subscribe" event.
 func NewServer(ops telemetry.Client) *Server {
 	io := socket.NewServer(nil, nil)
-	drivers := io.Of(environments.Get("HELLNET_SOCKET_DRIVERS_NAMESPACE", "/drivers"), nil)
-	riders := io.Of(environments.Get("HELLNET_SOCKET_RIDERS_NAMESPACE", "/riders"), nil)
+	drivers := io.Of(environments.GetString("SOCKET_DRIVERS_NAMESPACE", ""), nil)
+	riders := io.Of(environments.GetString("SOCKET_RIDERS_NAMESPACE", ""), nil)
 
 	_ = riders.On("connection", func(args ...any) {
 		client, ok := args[0].(*socket.Socket)
@@ -38,11 +39,14 @@ func NewServer(ops telemetry.Client) *Server {
 			if len(values) != 1 {
 				return
 			}
-			orderID, ok := values[0].(string)
-			if !ok || strings.TrimSpace(orderID) == "" {
+			orderID := toString(values[0])
+			if strings.TrimSpace(orderID) == "" {
 				return
 			}
 			client.Join(socket.Room(orderRoom(orderID)))
+			if ops != nil {
+				ops.Info("socket.order.subscribe", "order_id", orderID, "room", orderRoom(orderID))
+			}
 		})
 	})
 
@@ -55,7 +59,7 @@ func (s *Server) Handler() http.Handler { return s.io.ServeHandler(nil) }
 // EmitRequested broadcasts an order request to connected driver applications.
 func (s *Server) EmitRequested(event orders.OrderRequested) error {
 	if s.ops == nil {
-		return s.drivers.Emit(environments.Get("HELLNET_SOCKET_ORDER_REQUESTED_EVENT", "order.requested"), event)
+		return s.drivers.Emit(environments.GetString("KAFKA_TOPIC_ORDER_REQUESTED", ""), event)
 	}
 	return s.ops.WithSpan("socket.emit.order_requested", func(ctx context.Context) error {
 		s.ops.Info("socket.emit.order_requested",
@@ -64,14 +68,14 @@ func (s *Server) EmitRequested(event orders.OrderRequested) error {
 			"event_id", event.EventID,
 			"event_version", event.EventVersion,
 		)
-		return s.drivers.Emit(environments.Get("HELLNET_SOCKET_ORDER_REQUESTED_EVENT", "order.requested"), event)
+		return s.drivers.Emit(environments.GetString("KAFKA_TOPIC_ORDER_REQUESTED", ""), event)
 	})
 }
 
 // EmitAccepted sends acceptance to the mobile client subscribed to this order.
 func (s *Server) EmitAccepted(event orders.OrderAccepted) error {
 	if s.ops == nil {
-		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(environments.Get("HELLNET_SOCKET_ORDER_ACCEPTED_EVENT", "order.accepted"), event)
+		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(environments.GetString("KAFKA_TOPIC_ORDER_ACCEPTED", ""), event)
 	}
 	return s.ops.WithSpan("socket.emit.order_accepted", func(ctx context.Context) error {
 		s.ops.Info("socket.emit.order_accepted",
@@ -79,9 +83,28 @@ func (s *Server) EmitAccepted(event orders.OrderAccepted) error {
 			"driver_id", event.DriverID,
 			"event_id", event.EventID,
 			"event_version", event.EventVersion,
+			"room", orderRoom(event.OrderID),
 		)
-		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(environments.Get("HELLNET_SOCKET_ORDER_ACCEPTED_EVENT", "order.accepted"), event)
+		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(environments.GetString("KAFKA_TOPIC_ORDER_ACCEPTED", ""), event)
 	})
 }
 
 func orderRoom(orderID string) string { return "order:" + orderID }
+
+// toString normalizes a Socket.IO event argument into a string. Payloads can
+// arrive as string, []byte, json.RawMessage or a Stringer, depending on the
+// client parser, so we accept them all.
+func toString(v any) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	case []byte:
+		return string(t)
+	case fmt.Stringer:
+		return t.String()
+	case nil:
+		return ""
+	default:
+		return fmt.Sprintf("%v", t)
+	}
+}

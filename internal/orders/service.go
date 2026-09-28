@@ -7,7 +7,7 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/guilhermelinosp/hellnet-lib-api/errors"
+	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -74,7 +74,7 @@ func (s *Service) doRequested(ctx context.Context, input OrderRequestedInput) (O
 
 	if strings.TrimSpace(input.ID) == "" || strings.TrimSpace(input.RiderID) == "" {
 		status = "validation_error"
-		return OrderOutput{}, errors.Validation("ride", "id and rider_id are required")
+		return OrderOutput{}, platform.ValidationError("ride", "id and rider_id are required")
 	}
 
 	if input.StatusHistoryID == "" {
@@ -98,12 +98,17 @@ func (s *Service) doRequested(ctx context.Context, input OrderRequestedInput) (O
 	})
 	input.EventType = (OrderRequested{}).MessageType()
 
-	order, err := s.repository.Requested(ctx, input)
+	var order Order
+	err := s.tel.Span(ctx, "db.orders.requested", func(ctx context.Context) error {
+		var dbErr error
+		order, dbErr = s.repository.Requested(ctx, input)
+		return dbErr
+	})
 	if err != nil {
 		status = "error"
 		return OrderOutput{}, err
 	}
 
-	s.tel.Log().Info("order requested", "order_id", input.ID, "rider_id", input.RiderID)
+	s.tel.Info("order requested", "order_id", input.ID, "rider_id", input.RiderID)
 	return OrderOutput(order), nil
 }

@@ -1,4 +1,4 @@
-package outbox
+package listeners
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // outboxStore reads pending outbox rows and records publication audit rows.
@@ -25,12 +27,16 @@ func (s Database) QueryRow(id string) (Event, bool, error) {
 	return database.QueryRow[Event](s.db, `SELECT id, event_type, event_version, payload FROM outbox_events WHERE id = $1`, id)
 }
 
-// QueryPending returns events not yet published.
+// QueryPending returns events that have no successful publication yet.
+// Tables are append-only (INSERT/SELECT only), so "already published" is
+// derived from outbox_publications instead of mutating outbox_events.
 func (s Database) QueryPending() ([]Event, error) {
-	return database.Query[Event](s.db, `SELECT id, event_type, event_version, payload FROM outbox_events WHERE published_at IS NULL ORDER BY occurred_at LIMIT 100`)
+	return database.Query[Event](s.db, `SELECT id, event_type, event_version, payload FROM outbox_events e WHERE NOT EXISTS (SELECT 1 FROM outbox_publications p WHERE p.event_id = e.id) ORDER BY occurred_at LIMIT 100`)
 }
 
-// RecordPublished audits a successfully published event.
+// RecordPublished audits a successfully published event. The outbox_events row
+// itself is never updated — the NOT EXISTS guard in QueryPending is what
+// prevents re-publication.
 func (s Database) RecordPublished(id string) error {
 	_, err := s.db.Execute(`INSERT INTO outbox_publications (id, event_id, published_at) SELECT gen_random_uuid(), $1, now() WHERE NOT EXISTS (SELECT 1 FROM outbox_publications WHERE event_id = $1)`, id)
 	return err
@@ -165,7 +171,7 @@ func (l *Listener) onNotification(id string) {
 			l.memo.release(id)
 			return
 		}
-		if err := l.publisher.Publish(event); err != nil {
+		if err := l.publishWithSpan(event); err != nil {
 			if auditErr := l.store.RecordFailure(id, err.Error()); auditErr != nil {
 				l.ops.Error("outbox failure audit insert failed", "error", auditErr, "event_id", id)
 			}
@@ -179,6 +185,19 @@ func (l *Listener) onNotification(id string) {
 		}
 		l.memo.settle(id)
 		l.incrementCounter("outbox.events.published.total")
+	})
+}
+
+// publishWithSpan publica o evento dentro de um span de outbox. O producer
+// Kafka cria o span filho kafka.publish e propaga o traceparent no header.
+func (l *Listener) publishWithSpan(event Event) error {
+	if l.ops == nil {
+		return l.publisher.Publish(event)
+	}
+	return l.ops.WithSpan("outbox.publish", func(ctx context.Context) error {
+		span := trace.SpanFromContext(ctx)
+		span.SetAttributes(attribute.String("event_type", event.EventType))
+		return l.publisher.Publish(event)
 	})
 }
 
@@ -215,7 +234,7 @@ func (l *Listener) reconcileOnce() {
 		if !l.memo.start(event.ID) {
 			continue
 		}
-		if err := l.publisher.Publish(event); err != nil {
+		if err := l.publishWithSpan(event); err != nil {
 			if auditErr := l.store.RecordFailure(event.ID, err.Error()); auditErr != nil {
 				l.ops.Error("outbox failure audit insert failed", "error", auditErr, "event_id", event.ID)
 			}
