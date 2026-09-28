@@ -43,7 +43,7 @@ func run() error {
 	}
 	defer func() { _ = db.Close() }()
 
-	c, err := cache.New()
+	c, err := cache.New(ctx, ops)
 	if err != nil {
 		return err
 	}
