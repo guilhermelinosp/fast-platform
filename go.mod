@@ -36,7 +36,6 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
-	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -99,24 +98,14 @@ require (
 require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/guilhermelinosp/hellnet-lib-cache v0.0.0-00010101000000-000000000000
-	github.com/guilhermelinosp/hellnet-lib-database v1.0.4
-	github.com/guilhermelinosp/hellnet-lib-environments v1.1.24
-	github.com/guilhermelinosp/hellnet-lib-kafka v1.7.1
-	github.com/guilhermelinosp/hellnet-lib-telemetry v1.5.5
+	github.com/guilhermelinosp/hellnet-lib-cache v1.1.15-0.20260923090754-cf4e2abdd115
+	github.com/guilhermelinosp/hellnet-lib-database v1.0.2-0.20260923090754-18e24ffe9177
+	github.com/guilhermelinosp/hellnet-lib-environments v1.1.25-0.20260923090754-5a0c20c8b766
+	github.com/guilhermelinosp/hellnet-lib-kafka v1.6.11-0.20260923090754-c10ca83178bb
+	github.com/guilhermelinosp/hellnet-lib-telemetry v1.5.6-0.20260923090754-42462930c9fc
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/zishang520/socket.io/servers/socket/v3 v3.0.5
 	go.opentelemetry.io/otel v1.46.0
 	go.opentelemetry.io/otel/metric v1.46.0
 	go.opentelemetry.io/otel/trace v1.46.0
 )
-
-replace github.com/guilhermelinosp/hellnet-lib-environments => /Users/guilhermelino/repositories/hellnet-lib-environments
-
-replace github.com/guilhermelinosp/hellnet-lib-telemetry => /Users/guilhermelino/repositories/hellnet-lib-telemetry
-
-replace github.com/guilhermelinosp/hellnet-lib-cache => /Users/guilhermelino/repositories/hellnet-lib-cache
-
-replace github.com/guilhermelinosp/hellnet-lib-database => /Users/guilhermelino/repositories/hellnet-lib-database
-
-replace github.com/guilhermelinosp/hellnet-lib-kafka => /Users/guilhermelino/repositories/hellnet-lib-kafka

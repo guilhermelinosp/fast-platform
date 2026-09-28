@@ -71,6 +71,16 @@ github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aN
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 h1:/Tnpcb2E0Pz/tN9s3bfEY2Q8ePCEX9iuS+cneUwncnw=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0/go.mod h1:zOBXOsUaBSjKgmH4OGzV1esUpR3oUSCPYVd2cUBjKYY=
+github.com/guilhermelinosp/hellnet-lib-cache v1.1.15-0.20260923090754-cf4e2abdd115 h1:q/eqq8sMUsISljI0eUK6HJ2tDXXUz+Pll41S5C/YQwM=
+github.com/guilhermelinosp/hellnet-lib-cache v1.1.15-0.20260923090754-cf4e2abdd115/go.mod h1:jGvIq4o56Cdosq2rZpRp//HWmuw1Hsh7w6iDKEpkTuw=
+github.com/guilhermelinosp/hellnet-lib-database v1.0.2-0.20260923090754-18e24ffe9177 h1:prE41VEKQrR9IWYLJN0TdoU1f0157PBsO7jkCrPtg8A=
+github.com/guilhermelinosp/hellnet-lib-database v1.0.2-0.20260923090754-18e24ffe9177/go.mod h1:KUiOdHAyhUHwUwLHrY5s/V12uxoo3tI57awE1tu9YtI=
+github.com/guilhermelinosp/hellnet-lib-environments v1.1.25-0.20260923090754-5a0c20c8b766 h1:VR8ivxUasg4WhA2LN5/V74Es9GIa5JRoFfJI11cS4h8=
+github.com/guilhermelinosp/hellnet-lib-environments v1.1.25-0.20260923090754-5a0c20c8b766/go.mod h1:46LuafLvMWVmyXwdgBzaDA6TFyKWa0QZX8gj17Y96mY=
+github.com/guilhermelinosp/hellnet-lib-kafka v1.6.11-0.20260923090754-c10ca83178bb h1:nw0/huew9ozcrPmidFEWUvyKLIhH9v9cnu3k/qw3+vw=
+github.com/guilhermelinosp/hellnet-lib-kafka v1.6.11-0.20260923090754-c10ca83178bb/go.mod h1:2jLikX9C7TPOki+T0zPsaJSKKJ9Yv/XHPO2HpBiHh9E=
+github.com/guilhermelinosp/hellnet-lib-telemetry v1.5.6-0.20260923090754-42462930c9fc h1:V9Dl/RtdW6JmaxLP6WDXs61pO8Hs0dTPFf63zC1jrNI=
+github.com/guilhermelinosp/hellnet-lib-telemetry v1.5.6-0.20260923090754-42462930c9fc/go.mod h1:q0487NzNeBueBD5E/Qe56iiqQxzs2dvgsqqLGpHQn0g=
 github.com/iskorotkov/avro/v2 v2.34.0 h1:NSUmRFg8Gy51BuALFC6l6n0z1DFz6eAZT6XcjjIJ+FA=
 github.com/iskorotkov/avro/v2 v2.34.0/go.mod h1:euwnxvsKRkeD5nh0T7DLxBmJvRyycOyDBuDnTfDgwT8=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=

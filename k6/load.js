@@ -30,7 +30,7 @@ export const options = {
   },
 };
 
-const BASE = __ENV.BASE_URL || 'http://localhost:8080';
+const BASE = __ENV.BASE_URL || 'http://127.0.0.1:18081';
 const API_PREFIX = __ENV.API_PREFIX || '/api/v1';
 
 // Riders pre-alocados para evitar UUID aleatório por iteração.
@@ -58,7 +58,7 @@ export function setup() {
 // Função default: usada quando o usuário roda com --vus/--duration (sem o
 // bloco scenarios). Exercita o fluxo completo por iteração: criar a ordem e
 // aceitá-la, medindo o caminho real de ponta a ponta.
-export default function (data) {
+export default function loadFlow(data) {
   createAndAccept(data);
 }
 

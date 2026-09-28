@@ -5,10 +5,10 @@
 //
 // Uso:
 //   k6 run k6/e2e.js
-//   BASE_URL=http://localhost:8080 SOCKETS_URL=http://localhost:8082 k6 run k6/e2e.js
+//   BASE_URL=http://127.0.0.1:18081 SOCKETS_URL=http://127.0.0.1:18082 k6 run k6/e2e.js
 //
 // Requer k6 (módulo k6/websockets) e as apps no ar:
-//   cmd/api (8080), cmd/listeners, cmd/sockets (8081 ou 8082 local).
+//   cmd/api (8080), cmd/listeners, cmd/sockets (18082 local).
 //
 // Nota: o build k6 devel não propaga check()/log() executados DENTRO dos
 // handlers de WebSocket (open/message). A conectividade WS é validada pelas
@@ -44,13 +44,15 @@ export const options = {
   thresholds: {
     http_req_failed: ['rate<0.05'],        // <5% de falhas HTTP
     http_req_duration: ['p(95)<1000'],     // p95 < 1s
-    socket_sessions: ['count>=3'],         // sessões Socket.IO estabelecidas
+    socket_sessions: ['count>=3'],          // sessões Socket.IO estabelecidas
     socket_errors: ['count==0'],            // nenhum handshake rejeitado
   },
 };
 
-const BASE = __ENV.BASE_URL || 'http://localhost:8080';
-const SOCKETS = __ENV.SOCKETS_URL || 'http://localhost:8082';
+const BASE = __ENV.BASE_URL || 'http://127.0.0.1:18081';
+// 8081 is commonly used by the Redpanda port-forward. Keep the socket
+// default isolated; override SOCKETS_URL when the gateway uses another port.
+const SOCKETS = __ENV.SOCKETS_URL || 'http://127.0.0.1:18082';
 const API_PREFIX = __ENV.API_PREFIX || '/api/v1';
 const DRIVERS_NS = __ENV.SOCKET_DRIVERS_NAMESPACE || '/drivers';
 const RIDERS_NS = __ENV.SOCKET_RIDERS_NAMESPACE || '/riders';
@@ -77,7 +79,7 @@ export function fullFlow(data) {
   sleep(0.4);
 }
 
-export default function (data) {
+export default function e2eFlow(data) {
   fullFlow(data);
 }
 
@@ -141,6 +143,7 @@ export function socketHandshake(data) {
   const handshake = http.get(pollingURL, { tags: { operation: 'socket_handshake' } });
   if (handshake.status !== 200 || !handshake.body || handshake.body[0] !== '0') {
     socketErrors.add(1);
+    sleep(1);
     return;
   }
 
@@ -149,10 +152,12 @@ export function socketHandshake(data) {
     sid = JSON.parse(handshake.body.slice(1)).sid;
   } catch (_) {
     socketErrors.add(1);
+    sleep(1);
     return;
   }
   if (!sid) {
     socketErrors.add(1);
+    sleep(1);
     return;
   }
 
@@ -166,6 +171,7 @@ export function socketHandshake(data) {
   );
   if (connect.status !== 200) {
     socketErrors.add(1);
+    sleep(1);
     return;
   }
 
