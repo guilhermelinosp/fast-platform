@@ -197,7 +197,7 @@ func (l *Listener) publishWithSpan(event Event) error {
 	if l.ops == nil {
 		return l.publisher.Publish(event)
 	}
-	return l.ops.Span(l.ctx, "outbox.publish", func(ctx context.Context) error {
+	return l.ops.Trace(l.ctx).Span("outbox.publish", func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 		span.SetAttributes(attribute.String("event_type", event.EventType))
 		return l.publisher.Publish(event)

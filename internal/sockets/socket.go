@@ -61,7 +61,7 @@ func (s *Server) EmitRequested(event orders.OrderRequested) error {
 	if s.ops == nil {
 		return s.drivers.Emit(env.String("KAFKA_TOPIC_ORDER_REQUESTED", ""), event)
 	}
-	return s.ops.Span(context.Background(), "socket.emit.order_requested", func(ctx context.Context) error {
+	return s.ops.Trace(context.Background()).Span("socket.emit.order_requested", func(ctx context.Context) error {
 		s.ops.Log(ctx).Info("socket.emit.order_requested",
 			"order_id", event.OrderID,
 			"rider_id", event.RiderID,
@@ -77,7 +77,7 @@ func (s *Server) EmitAccepted(event orders.OrderAccepted) error {
 	if s.ops == nil {
 		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(env.String("KAFKA_TOPIC_ORDER_ACCEPTED", ""), event)
 	}
-	return s.ops.Span(context.Background(), "socket.emit.order_accepted", func(ctx context.Context) error {
+	return s.ops.Trace(context.Background()).Span("socket.emit.order_accepted", func(ctx context.Context) error {
 		s.ops.Log(ctx).Info("socket.emit.order_accepted",
 			"order_id", event.OrderID,
 			"driver_id", event.DriverID,

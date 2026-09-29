@@ -38,7 +38,7 @@ func NewOrderRequestConsumer(ctx context.Context, ops *telemetry.Telemetry, emit
 		return nil, platform.NewError(http.StatusInternalServerError, "INTERNAL", "sockets: requested emitter is nil")
 	}
 	var handler kafka.HandlerFunc[orders.OrderRequested] = func(ctx context.Context, event orders.OrderRequested, _ kafka.Ctx) error {
-		return ops.Span(ctx, "kafka.consume.order_requested", func(ctx context.Context) error {
+		return ops.Trace(ctx).Span("kafka.consume.order_requested", func(ctx context.Context) error {
 			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID), attribute.String("event_id", event.EventID))
 			ops.Log(ctx).Info("kafka.consume.order_requested", "order_id", event.OrderID, "event_id", event.EventID)
 			_ = ops.Metric(ctx).Counter("socket.kafka.consume.order_requested.total", 1)
@@ -62,7 +62,7 @@ func NewOrderAcceptedConsumer(ctx context.Context, ops *telemetry.Telemetry, emi
 		return nil, platform.NewError(http.StatusInternalServerError, "INTERNAL", "sockets: accepted emitter is nil")
 	}
 	var handler kafka.HandlerFunc[orders.OrderAccepted] = func(ctx context.Context, event orders.OrderAccepted, _ kafka.Ctx) error {
-		return ops.Span(ctx, "kafka.consume.order_accepted", func(ctx context.Context) error {
+		return ops.Trace(ctx).Span("kafka.consume.order_accepted", func(ctx context.Context) error {
 			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID), attribute.String("driver_id", event.DriverID), attribute.String("event_id", event.EventID))
 			ops.Log(ctx).Info("kafka.consume.order_accepted", "order_id", event.OrderID, "driver_id", event.DriverID, "event_id", event.EventID)
 			_ = ops.Metric(ctx).Counter("socket.kafka.consume.order_accepted.total", 1)

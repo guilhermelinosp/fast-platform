@@ -72,7 +72,7 @@ func (s *Service) doAccepted(ctx context.Context, input AcceptedInput) (OrderOut
 	input.Payload, _ = json.Marshal(orders.OrderAccepted{EventID: input.OutboxID, EventVersion: 1, OccurredAt: time.Now().UnixMilli(), OrderID: input.OrderID, DriverID: input.DriverID})
 	input.EventType = (orders.OrderAccepted{}).MessageType()
 	var order Order
-	err := s.tel.Span(ctx, "db.drivers.accepted", func(ctx context.Context) error {
+	err := s.tel.Trace(ctx).Span("db.drivers.accepted", func(ctx context.Context) error {
 		var dbErr error
 		order, dbErr = s.repository.Accepted(ctx, input)
 		return dbErr

@@ -83,7 +83,7 @@ func (s *Service) doRequested(ctx context.Context, input OrderRequestedInput) (O
 	input.EventType = (OrderRequested{}).MessageType()
 
 	var order Order
-	err := s.tel.Span(ctx, "db.orders.requested", func(ctx context.Context) error {
+	err := s.tel.Trace(ctx).Span("db.orders.requested", func(ctx context.Context) error {
 		var dbErr error
 		order, dbErr = s.repository.Requested(ctx, input)
 		return dbErr
