@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -36,11 +35,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	ops, err := telemetry.New()
+	ops, err := telemetry.New(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = ops.Close() }()
+	defer func() { _ = ops.Close(ctx) }()
 
 	db, err := database.New(ctx, ops)
 	if err != nil {
@@ -55,21 +54,15 @@ func run() error {
 	orders.NewHandler(riderService).Register(v1)
 	drivers.NewHandler(driverService).Register(v1)
 
-	router.GET("/live", ginHandler(ops.Live()))
-	router.GET("/ready", ginHandler(ops.Ready()))
-	router.GET("/health", ginHandler(ops.Health()))
+	router.GET("/live", gin.WrapH(ops.Live()))
+	router.GET("/ready", gin.WrapH(ops.Ready()))
+	router.GET("/health", gin.WrapH(ops.Health()))
 
-	ops.Info("fast-platform started", "port", cfg.Port)
-	err = platform.Run(ctx, cfg, platform.NewServer(cfg, ops, telemetry.Middleware(ops, router)))
+	ops.Log(ctx).Info("fast-platform started", "port", cfg.Port)
+	err = platform.Run(ctx, cfg, platform.NewServer(cfg, ops, router))
 	if err != nil && !errors.Is(err, context.Canceled) {
-		ops.Error("runtime error", "error", err)
+		ops.Log(ctx).Error("runtime error", "error", err)
 		return err
 	}
 	return nil
-}
-
-func ginHandler(h http.Handler) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		h.ServeHTTP(c.Writer, c.Request)
-	}
 }

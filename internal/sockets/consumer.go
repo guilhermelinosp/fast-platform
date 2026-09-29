@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
-	"github.com/guilhermelinosp/hellnet-lib-environments/environments"
 	"github.com/guilhermelinosp/hellnet-lib-kafka/kafka"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -14,11 +14,11 @@ import (
 )
 
 func requestedHandlerSpec() kafka.HandlerSpec {
-	return kafka.HandlerSpec{Group: environments.GetString("KAFKA_TOPIC_ORDER_REQUESTED", "br.com.hellnet.fast.order.requested.v1")}
+	return kafka.HandlerSpec{Group: env.String("KAFKA_TOPIC_ORDER_REQUESTED", "br.com.hellnet.fast.order.requested.v1")}
 }
 
 func acceptedHandlerSpec() kafka.HandlerSpec {
-	return kafka.HandlerSpec{Group: environments.GetString("KAFKA_TOPIC_ORDER_ACCEPTED", "br.com.hellnet.fast.order.accepted.v1")}
+	return kafka.HandlerSpec{Group: env.String("KAFKA_TOPIC_ORDER_ACCEPTED", "br.com.hellnet.fast.order.accepted.v1")}
 }
 
 // RequestedEmitter publishes requested riders to connected driver clients.
@@ -33,17 +33,15 @@ type AcceptedEmitter interface {
 
 // NewOrderRequestConsumer consumes the order-requested topic and emits each event to the
 // driver Socket.IO namespace.
-func NewOrderRequestConsumer(ctx context.Context, ops telemetry.Client, emitter RequestedEmitter) (*kafka.Consumer[orders.OrderRequested], error) {
+func NewOrderRequestConsumer(ctx context.Context, ops *telemetry.Telemetry, emitter RequestedEmitter) (*kafka.Consumer[orders.OrderRequested], error) {
 	if emitter == nil {
 		return nil, platform.NewError(http.StatusInternalServerError, "INTERNAL", "sockets: requested emitter is nil")
 	}
 	var handler kafka.HandlerFunc[orders.OrderRequested] = func(ctx context.Context, event orders.OrderRequested, _ kafka.Ctx) error {
-		return ops.Span(ctx, "kafka.consume.order_requested", func(ctx context.Context) error {
+		return ops.Trace(ctx).Span("kafka.consume.order_requested", func(ctx context.Context) error {
 			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID), attribute.String("event_id", event.EventID))
-			ops.Info("kafka.consume.order_requested", "order_id", event.OrderID, "event_id", event.EventID)
-			if c, err := ops.Metric().Counter("socket.kafka.consume.order_requested.total"); err == nil {
-				c.Add(ctx, 1)
-			}
+			ops.Log(ctx).Info("kafka.consume.order_requested", "order_id", event.OrderID, "event_id", event.EventID)
+			_ = ops.Metric(ctx).Counter("socket.kafka.consume.order_requested.total", 1)
 			return emitter.EmitRequested(event)
 		})
 	}
@@ -59,17 +57,15 @@ func NewOrderRequestConsumer(ctx context.Context, ops telemetry.Client, emitter 
 
 // NewOrderAcceptedConsumer consumes the order-accepted topic and emits each event to
 // its Socket.IO order room.
-func NewOrderAcceptedConsumer(ctx context.Context, ops telemetry.Client, emitter AcceptedEmitter) (*kafka.Consumer[orders.OrderAccepted], error) {
+func NewOrderAcceptedConsumer(ctx context.Context, ops *telemetry.Telemetry, emitter AcceptedEmitter) (*kafka.Consumer[orders.OrderAccepted], error) {
 	if emitter == nil {
 		return nil, platform.NewError(http.StatusInternalServerError, "INTERNAL", "sockets: accepted emitter is nil")
 	}
 	var handler kafka.HandlerFunc[orders.OrderAccepted] = func(ctx context.Context, event orders.OrderAccepted, _ kafka.Ctx) error {
-		return ops.Span(ctx, "kafka.consume.order_accepted", func(ctx context.Context) error {
+		return ops.Trace(ctx).Span("kafka.consume.order_accepted", func(ctx context.Context) error {
 			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID), attribute.String("driver_id", event.DriverID), attribute.String("event_id", event.EventID))
-			ops.Info("kafka.consume.order_accepted", "order_id", event.OrderID, "driver_id", event.DriverID, "event_id", event.EventID)
-			if c, err := ops.Metric().Counter("socket.kafka.consume.order_accepted.total"); err == nil {
-				c.Add(ctx, 1)
-			}
+			ops.Log(ctx).Info("kafka.consume.order_accepted", "order_id", event.OrderID, "driver_id", event.DriverID, "event_id", event.EventID)
+			_ = ops.Metric(ctx).Counter("socket.kafka.consume.order_accepted.total", 1)
 			return emitter.EmitAccepted(event)
 		})
 	}

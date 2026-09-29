@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"os/signal"
@@ -10,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/guilhermelinosp/hellnet-lib-environments/environments"
+	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 )
 
@@ -33,21 +34,21 @@ func (c *safeConn) ReadMessage() (int, []byte, error) { return c.conn.ReadMessag
 func (c *safeConn) Close() error                      { return c.conn.Close() }
 
 // connect dials the Engine.IO endpoint and waits for the "0" open packet.
-func connectSocket(ops *telemetry.Telemetry, baseURL string) *safeConn {
+func connectSocket(ctx context.Context, ops *telemetry.Telemetry, baseURL string) *safeConn {
 	url := baseURL + "/socket.io/?EIO=4&transport=websocket"
-	ops.Info("Connecting to WebSocket", "url", url)
+	ops.Log(ctx).Info("Connecting to WebSocket", "url", url)
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
-		ops.Error("Failed to connect", "error", err)
+		ops.Log(ctx).Error("Failed to connect", "error", err)
 		os.Exit(1)
 	}
 	// Wait for the Engine.IO open packet ("0{...}") before doing anything.
 	_, open, err := conn.ReadMessage()
 	if err != nil {
-		ops.Error("Failed to read open packet", "error", err)
+		ops.Log(ctx).Error("Failed to read open packet", "error", err)
 		os.Exit(1)
 	}
-	ops.Info("Engine.IO open", "packet", truncate(string(open)))
+	ops.Log(ctx).Info("Engine.IO open", "packet", truncate(string(open)))
 	return &safeConn{conn: conn}
 }
 
@@ -60,24 +61,24 @@ func joinNamespace(conn *safeConn, namespace string) {
 // must carry the rider namespace explicitly (42<ns>,["order.subscribe",...]);
 // without it the packet is routed to the root namespace where no handler
 // exists and the rider never enters the room.
-func subscribeToOrder(ops *telemetry.Telemetry, conn *safeConn, namespace string, orderID string) {
+func subscribeToOrder(ctx context.Context, ops *telemetry.Telemetry, conn *safeConn, namespace string, orderID string) {
 	msg := `42` + namespace + `,["order.subscribe","` + orderID + `"]`
 	if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
-		ops.Error("Failed to send subscribe", "error", err)
+		ops.Log(ctx).Error("Failed to send subscribe", "error", err)
 		return
 	}
-	ops.Info("RIDER subscribed to order room", "order_id", orderID, "namespace", namespace)
+	ops.Log(ctx).Info("RIDER subscribed to order room", "order_id", orderID, "namespace", namespace)
 }
 
 // readLoop decodes and logs every incoming packet. When an order.requested
 // event arrives on the driver namespace, it extracts the order ID and passes
 // it to onOrderRequested so the rider can join the real room.
-func readLoop(ops *telemetry.Telemetry, conn *safeConn, label string, onOrderRequested func(orderID string)) {
+func readLoop(ctx context.Context, ops *telemetry.Telemetry, conn *safeConn, label string, onOrderRequested func(orderID string)) {
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				ops.Error("Read error", "label", label, "error", err)
+				ops.Log(ctx).Error("Read error", "label", label, "error", err)
 			}
 			return
 		}
@@ -87,11 +88,11 @@ func readLoop(ops *telemetry.Telemetry, conn *safeConn, label string, onOrderReq
 		// are keepalive noise, so we answer silently without logging them.
 		if raw == "2" {
 			if err := conn.WriteMessage(websocket.TextMessage, []byte("3")); err != nil {
-				ops.Error("Failed to send pong", "label", label, "error", err)
+				ops.Log(ctx).Error("Failed to send pong", "label", label, "error", err)
 			}
 			continue
 		}
-		ops.Info(label+" << packet", "raw", truncate(raw), "decoded", decodePacket(raw))
+		ops.Log(ctx).Info(label+" << packet", "raw", truncate(raw), "decoded", decodePacket(raw))
 		if onOrderRequested != nil {
 			if orderID := extractOrderRequested(raw); orderID != "" {
 				onOrderRequested(orderID)
@@ -163,41 +164,42 @@ func truncate(s string) string {
 }
 
 func main() {
-	ops, err := telemetry.New()
+	ctx := context.Background()
+	ops, err := telemetry.New(ctx)
 	if err != nil {
 		os.Exit(1)
 	}
-	defer func() { _ = ops.Close() }()
+	defer func() { _ = ops.Close(ctx) }()
 
-	baseURL := environments.GetString("SOCKET_URL", "ws://localhost:8080")
-	driversNS := environments.GetString("SOCKET_DRIVERS_NAMESPACE", "/drivers")
-	ridersNS := environments.GetString("SOCKET_RIDERS_NAMESPACE", "/riders")
+	baseURL := env.String("SOCKET_URL", "ws://localhost:8080")
+	driversNS := env.String("SOCKET_DRIVERS_NAMESPACE", "/drivers")
+	ridersNS := env.String("SOCKET_RIDERS_NAMESPACE", "/riders")
 
 	// Driver client
-	ops.Info("=== Testing Driver Client ===", "namespace", driversNS, "url", baseURL)
-	driverConn := connectSocket(ops, baseURL)
+	ops.Log(ctx).Info("=== Testing Driver Client ===", "namespace", driversNS, "url", baseURL)
+	driverConn := connectSocket(ctx, ops, baseURL)
 	defer func() { _ = driverConn.Close() }()
 	joinNamespace(driverConn, driversNS)
 
 	// Rider client
-	ops.Info("=== Testing Rider Client ===", "namespace", ridersNS, "url", baseURL)
-	riderConn := connectSocket(ops, baseURL)
+	ops.Log(ctx).Info("=== Testing Rider Client ===", "namespace", ridersNS, "url", baseURL)
+	riderConn := connectSocket(ctx, ops, baseURL)
 	defer func() { _ = riderConn.Close() }()
 	joinNamespace(riderConn, ridersNS)
 
 	// When the driver receives an order.requested, subscribe the rider to that
 	// real order room so the acceptance notification is delivered.
-	go readLoop(ops, driverConn, "DRIVER", func(orderID string) {
-		subscribeToOrder(ops, riderConn, ridersNS, orderID)
+	go readLoop(ctx, ops, driverConn, "DRIVER", func(orderID string) {
+		subscribeToOrder(ctx, ops, riderConn, ridersNS, orderID)
 	})
-	go readLoop(ops, riderConn, "RIDER", nil)
+	go readLoop(ctx, ops, riderConn, "RIDER", nil)
 
 	// Keep running to receive events.
-	ops.Info("Waiting for events... (Ctrl+C to exit)")
+	ops.Log(ctx).Info("Waiting for events... (Ctrl+C to exit)")
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 
-	ops.Info("Shutting down...")
+	ops.Log(ctx).Info("Shutting down...")
 	time.Sleep(1 * time.Second)
 }
