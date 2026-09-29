@@ -27,12 +27,15 @@ func LoadDotEnv(files ...string) error {
 	return godotenv.Load(paths...)
 }
 
+// String returns an environment value or fallback when unset.
 func String(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return fallback
 }
+
+// Prefixed returns the first configured value using the given prefixes.
 func Prefixed(prefixes []string, key, fallback string) string {
 	for _, prefix := range prefixes {
 		if value := os.Getenv(prefix + key); value != "" {
@@ -41,6 +44,8 @@ func Prefixed(prefixes []string, key, fallback string) string {
 	}
 	return fallback
 }
+
+// Int returns an integer environment value or fallback when invalid.
 func Int(key string, fallback int) int {
 	value, err := strconv.Atoi(String(key, strconv.Itoa(fallback)))
 	if err != nil {
@@ -48,6 +53,8 @@ func Int(key string, fallback int) int {
 	}
 	return value
 }
+
+// IntPrefixed returns the first valid integer value using the given prefixes.
 func IntPrefixed(prefixes []string, key string, fallback int) int {
 	value, err := strconv.Atoi(Prefixed(prefixes, key, strconv.Itoa(fallback)))
 	if err != nil {
@@ -55,6 +62,8 @@ func IntPrefixed(prefixes []string, key string, fallback int) int {
 	}
 	return value
 }
+
+// Bool returns a boolean environment value or fallback when invalid.
 func Bool(key string, fallback bool) bool {
 	value, err := strconv.ParseBool(String(key, strconv.FormatBool(fallback)))
 	if err != nil {
@@ -62,6 +71,8 @@ func Bool(key string, fallback bool) bool {
 	}
 	return value
 }
+
+// BoolPrefixed returns the first valid boolean value using the given prefixes.
 func BoolPrefixed(prefixes []string, key string, fallback bool) bool {
 	value, err := strconv.ParseBool(Prefixed(prefixes, key, strconv.FormatBool(fallback)))
 	if err != nil {
@@ -69,12 +80,18 @@ func BoolPrefixed(prefixes []string, key string, fallback bool) bool {
 	}
 	return value
 }
+
+// Duration returns a duration environment value or fallback when invalid.
 func Duration(key string, fallback time.Duration) time.Duration {
 	return parseDuration(String(key, fallback.String()), fallback)
 }
+
+// DurationPrefixed returns the first valid duration using the given prefixes.
 func DurationPrefixed(prefixes []string, key string, fallback time.Duration) time.Duration {
 	return parseDuration(Prefixed(prefixes, key, fallback.String()), fallback)
 }
+
+// Slice returns a comma-separated environment value as trimmed strings.
 func Slice(key string) []string {
 	raw := strings.TrimSpace(os.Getenv(key))
 	if raw == "" {
