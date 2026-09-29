@@ -29,7 +29,7 @@ func NewConsumer(ctx context.Context, ops telemetry.Client, service MatchService
 		if ops == nil {
 			return matchEvent(ctx, event, service)
 		}
-		return ops.Span(ctx, "kafka.consume.order_requested", func(ctx context.Context) error {
+		return ops.Trace(ctx).Span("kafka.consume.order_requested", func(ctx context.Context) error {
 			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID))
 			return matchEvent(ctx, event, service)
 		})

@@ -28,8 +28,6 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gookit/color v1.6.1 // indirect
-	github.com/grafana/pyroscope-go v1.4.2 // indirect
-	github.com/grafana/pyroscope-go/godeltaprof v0.1.12 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 // indirect
 	github.com/iskorotkov/avro/v2 v2.34.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -104,9 +102,9 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/guilhermelinosp/hellnet-lib-cache v1.1.18-0.20260928235159-e3ed0404291b
-	github.com/guilhermelinosp/hellnet-lib-database v1.0.2-0.20260928234426-586a9096e4fa
-	github.com/guilhermelinosp/hellnet-lib-kafka v1.6.11-0.20260928234426-459087730bb4
-	github.com/guilhermelinosp/hellnet-lib-telemetry v1.5.6-0.20260929020119-fbe747654f19
+	github.com/guilhermelinosp/hellnet-lib-database v1.0.2-0.20260929020619-70831dd1c37e
+	github.com/guilhermelinosp/hellnet-lib-kafka v1.6.11-0.20260929020619-c75275ab9693
+	github.com/guilhermelinosp/hellnet-lib-telemetry v1.5.6-0.20260929020514-36525178a181
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
 	github.com/zishang520/socket.io/servers/socket/v3 v3.0.5
