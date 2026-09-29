@@ -59,9 +59,9 @@ curl -s 'localhost:8080/api/v1/hello?name=you'
 # 4. Write business logic. That's your 20%.
 ```
 
-No collector? Local structured logging and Prometheus `/metrics` remain active;
-only remote OTLP export and profiling stay off. Add a
-`TELEMETRY_ENDPOINT` to `.env` or the process environment to enable
+No collector? Local structured logging remains active; only remote OTLP export
+and profiling stay off. Add `HELLNET_TELEMETRY_ENDPOINT` to the environment
+file loaded by the process, or export it in the shell, to enable
 remote logs, metrics, traces, and profiling without changing application code.
 
 ---
@@ -122,12 +122,12 @@ Two strict namespaces, zero overlap:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `APP_NAME` | `golang-api-template` | Service identity exposed by the application |
-| `APP_ENV` | `development` | `production` enables Gin release mode |
-| `APP_PORT` | `8080` | Listen port |
-| `APP_SHUTDOWN_TIMEOUT` | `10s` | Drain budget; keep < k8s `terminationGracePeriodSeconds` |
-| `APP_READ_TIMEOUT` / `APP_WRITE_TIMEOUT` / `APP_IDLE_TIMEOUT` / `APP_READ_HEADER_TIMEOUT` | `15s` / `30s` / `120s` / `10s` | Explicit `http.Server` hardening |
-| `APP_CORS_ALLOWED_ORIGINS` | *(disabled)* | Comma-separated exact origins or `*` |
+| `HELLNET_SERVICE` | *(required)* | Service identity exposed by the application |
+| `HELLNET_ENVIRONMENT` | `Development` | `production` enables Gin release mode |
+| `HELLNET_PORT` | `8080` | Listen port |
+| `SHUTDOWN_TIMEOUT` | `10s` | Drain budget; keep < k8s `terminationGracePeriodSeconds` |
+| `READ_TIMEOUT` / `WRITE_TIMEOUT` / `IDLE_TIMEOUT` / `READ_HEADER_TIMEOUT` | `15s` / `30s` / `120s` / `10s` | Explicit `http.Server` hardening |
+| `CORS_ALLOWED_ORIGINS` | *(disabled)* | Comma-separated exact origins or `*` |
 
 Build metadata (`version`, `commit`, `date`) arrives via `-ldflags`
 (Makefile/Containerfile/CI) and appears at `GET /`.
