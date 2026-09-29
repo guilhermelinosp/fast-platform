@@ -19,7 +19,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
-	gintelemetry "github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry/gin"
 )
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -189,7 +188,7 @@ func NewRouter(cfg *Config, ops *telemetry.Telemetry) *gin.Engine {
 
 	engine := gin.New()
 	engine.HandleMethodNotAllowed = true
-	engine.Use(gintelemetry.Middleware(ops))
+	engine.Use(telemetryMiddleware(ops))
 	engine.Use(func(c *gin.Context) {
 		c.Set("telemetry", ops)
 		c.Next()
