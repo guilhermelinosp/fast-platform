@@ -152,8 +152,9 @@ func NewListener(ctx context.Context, tel *telemetry.Telemetry, db *database.DB,
 		return nil, err
 	}
 	l.stopListen = stop
-	l.workers.Add(1)
-	go l.reconcileLoop()
+	l.workers.Go(func() {
+		l.reconcileLoop()
+	})
 	return l, nil
 }
 
@@ -210,7 +211,6 @@ func (l *Listener) incrementCounter(name string) {
 }
 
 func (l *Listener) reconcileLoop() {
-	defer l.workers.Done()
 	ticker := time.NewTicker(outboxReloadAt)
 	defer ticker.Stop()
 	for {
