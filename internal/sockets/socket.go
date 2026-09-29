@@ -19,13 +19,13 @@ type Server struct {
 	io      *socket.Server
 	drivers socket.Namespace
 	riders  socket.Namespace
-	ops     telemetry.Client
+	ops     *telemetry.Telemetry
 }
 
 // NewServer creates a Socket.IO v4+ server. Mobile driver applications connect
 // to /drivers; rider applications connect to /riders and subscribe to their
 // order room with the "order.subscribe" event.
-func NewServer(ops telemetry.Client) *Server {
+func NewServer(ops *telemetry.Telemetry) *Server {
 	io := socket.NewServer(nil, nil)
 	drivers := io.Of(env.String("SOCKET_DRIVERS_NAMESPACE", ""), nil)
 	riders := io.Of(env.String("SOCKET_RIDERS_NAMESPACE", ""), nil)
@@ -45,7 +45,7 @@ func NewServer(ops telemetry.Client) *Server {
 			}
 			client.Join(socket.Room(orderRoom(orderID)))
 			if ops != nil {
-				ops.Info("socket.order.subscribe", "order_id", orderID, "room", orderRoom(orderID))
+				ops.Log(context.Background()).Info("socket.order.subscribe", "order_id", orderID, "room", orderRoom(orderID))
 			}
 		})
 	})
@@ -61,8 +61,8 @@ func (s *Server) EmitRequested(event orders.OrderRequested) error {
 	if s.ops == nil {
 		return s.drivers.Emit(env.String("KAFKA_TOPIC_ORDER_REQUESTED", ""), event)
 	}
-	return s.ops.WithSpan("socket.emit.order_requested", func(ctx context.Context) error {
-		s.ops.Info("socket.emit.order_requested",
+	return s.ops.Span(context.Background(), "socket.emit.order_requested", func(ctx context.Context) error {
+		s.ops.Log(ctx).Info("socket.emit.order_requested",
 			"order_id", event.OrderID,
 			"rider_id", event.RiderID,
 			"event_id", event.EventID,
@@ -77,8 +77,8 @@ func (s *Server) EmitAccepted(event orders.OrderAccepted) error {
 	if s.ops == nil {
 		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(env.String("KAFKA_TOPIC_ORDER_ACCEPTED", ""), event)
 	}
-	return s.ops.WithSpan("socket.emit.order_accepted", func(ctx context.Context) error {
-		s.ops.Info("socket.emit.order_accepted",
+	return s.ops.Span(context.Background(), "socket.emit.order_accepted", func(ctx context.Context) error {
+		s.ops.Log(ctx).Info("socket.emit.order_accepted",
 			"order_id", event.OrderID,
 			"driver_id", event.DriverID,
 			"event_id", event.EventID,

@@ -31,11 +31,11 @@ func run() error {
 	}
 	defer stop()
 
-	ops, err := telemetry.New()
+	ops, err := telemetry.New(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = ops.Close() }()
+	defer func() { _ = ops.Close(ctx) }()
 
 	db, err := database.New(ctx, ops)
 	if err != nil {
@@ -43,7 +43,7 @@ func run() error {
 	}
 	defer func() { _ = db.Close() }()
 
-	c, err := cache.New(ctx, ops)
+	c, err := cache.New()
 	if err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func run() error {
 	defer func() { _ = orderAcceptedProducer.Close() }()
 
 	producer := listeners.NewProducer(orderRequestedProducer, orderAcceptedProducer)
-	listener, err := listeners.NewListener(ops, db, producer)
+	listener, err := listeners.NewListener(ctx, ops, db, producer)
 	if err != nil {
 		return err
 	}
@@ -74,12 +74,12 @@ func run() error {
 	defer func() { _ = matchingConsumer.Close() }()
 
 	go func() {
-		_ = ops.Worker("matching.consume.order_requested", func(ctx context.Context) error {
+		_ = ops.WorkerContext(ctx, "matching.consume.order_requested", func(ctx context.Context) error {
 			return matchingConsumer.RunContext(ctx)
 		}, attribute.String("consumer", "matching"))
 	}()
 
-	ops.Info("fast-listeners started")
+	ops.Log(ctx).Info("fast-listeners started")
 	<-ctx.Done()
 	return nil
 }

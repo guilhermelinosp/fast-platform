@@ -19,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
+	gintelemetry "github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry/gin"
 )
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -151,9 +152,9 @@ func AbortError(c *gin.Context, err error) {
 	ops := telemetryFromContext(c)
 	path := sanitizeForLog(c.Request.URL.Path)
 	if cause := ErrorCause(mapped); cause != nil && !errors.Is(cause, context.Canceled) && ops != nil {
-		ops.Error("request failed", "method", c.Request.Method, "path", path, "status", mapped.Status, "code", mapped.Code, "error", cause)
+		ops.Log(c.Request.Context()).Error("request failed", "method", c.Request.Method, "path", path, "status", mapped.Status, "code", mapped.Code, "error", cause)
 	} else if ops != nil {
-		ops.Warn("request rejected", "method", c.Request.Method, "path", path, "status", mapped.Status, "code", mapped.Code, "message", mapped.Message)
+		ops.Log(c.Request.Context()).Warn("request rejected", "method", c.Request.Method, "path", path, "status", mapped.Status, "code", mapped.Code, "message", mapped.Message)
 	}
 	c.AbortWithStatusJSON(mapped.Status, gin.H{"error": gin.H{"code": mapped.Code, "message": mapped.Message}})
 }
@@ -188,6 +189,11 @@ func NewRouter(cfg *Config, ops *telemetry.Telemetry) *gin.Engine {
 
 	engine := gin.New()
 	engine.HandleMethodNotAllowed = true
+	engine.Use(gintelemetry.Middleware(ops))
+	engine.Use(func(c *gin.Context) {
+		c.Set("telemetry", ops)
+		c.Next()
+	})
 	engine.Use(requestID())
 	engine.Use(securityHeaders())
 	if len(cfg.CORSAllowedOrigins) > 0 {
@@ -301,7 +307,7 @@ func recovery(ops *telemetry.Telemetry) gin.HandlerFunc {
 		defer func() {
 			if r := recover(); r != nil {
 				if ops != nil {
-					ops.Error("panic recovered", "method", c.Request.Method, "path", sanitizeForLog(c.Request.URL.Path), "panic", fmt.Sprint(r))
+					ops.Log(c.Request.Context()).Error("panic recovered", "method", c.Request.Method, "path", sanitizeForLog(c.Request.URL.Path), "panic", fmt.Sprint(r))
 				}
 				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "internal server error"}})
 			}

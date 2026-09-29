@@ -22,12 +22,12 @@ Business logic does not depend on Gin.
 | Capability | Where it comes from |
 |---|---|
 | HTTP routing, handlers, validation, error envelope | `internal/api` abstraction + Gin adapter |
-| Structured logging (`slog`, JSON, trace-correlated) | [hellnet-lib-telemetry](https://github.com/guilhermelinosp/hellnet-lib-telemetry) |
+| Structured logging (Zap, JSON, trace-correlated) | [hellnet-lib-telemetry](https://github.com/guilhermelinosp/hellnet-lib-telemetry) |
 | Metrics (`http_requests_total`, `http_request_duration_seconds`, inflight, sizes, errors, runtime) | hellnet-lib-telemetry |
 | Distributed tracing (OTLP via otelhttp) | hellnet-lib-telemetry |
 | `/live` `/ready` `/health` `/metrics` endpoints | hellnet-lib-telemetry |
 | Sensitive-data redaction in logs | hellnet-lib-telemetry (`RedactSensitive`) |
-| Graceful shutdown with correct telemetry flush order | template bootstrap + lib `Shutdown()` |
+| Graceful shutdown with correct telemetry flush order | template bootstrap + lib `Close()` |
 | Secure timeouts, request-id, security headers, CORS | template adapter middlewares |
 | Tests via stdlib only (`testing` + `httptest`) | template suites |
 | CI: test/lint/CodeQL/dependency-review/govulncheck | `.github/workflows` |
@@ -99,7 +99,7 @@ remote logs, metrics, traces, and profiling without changing application code.
 
 Observability:  API ─► gin middleware ─► hellnet-lib-telemetry ─► Logs │ Metrics │ Traces
 Lifecycle:      context ─► config ─► telemetry.New ─► deps ─► server
-                        ⇄ signal ─► server.Shutdown ─► ops.Shutdown
+                        ⇄ signal ─► server.Shutdown ─► ops.Close
 ```
 
 ### Why this layering pays off
@@ -138,9 +138,10 @@ Documented with the library's own conventions; **never mirrored into `APP_*`**:
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `TELEMETRY_SERVICE` | required | Service identifier reported everywhere |
-| `TELEMETRY_ENDPOINT` | required for remote export | OTLP base URL incl. port (e.g. `http://alloy.monitoring:4318`) |
-| `TELEMETRY_ENVIRONMENT` | optional | Deployment environment resource attribute |
+| `HELLNET_TELEMETRY_SERVICE` | required | Service identifier reported everywhere |
+| `HELLNET_TELEMETRY_SERVICE_VERSION` | required | Service version reported as `service.version` |
+| `HELLNET_TELEMETRY_ENDPOINT` | required for remote export | OTLP base URL incl. port (e.g. `http://alloy.monitoring:4318`) |
+| `HELLNET_TELEMETRY_ENVIRONMENT` | optional | Deployment environment resource attribute |
 
 The library also accepts the legacy `HELLNET_*` names as fallback. With no
 endpoint, OTLP export is disabled while stdout logs and `/metrics` stay active.
@@ -208,9 +209,8 @@ also carry `event_id` when present. HTTP 2xx succeeds; network errors, 408,
 
 Everything below exists because the library does it natively:
 
-* **Logging** — one structured logger: JSON to stdout *and* OTLP, correlated
-  with `trace_id`. Inject `ops.Logger` into application dependencies.
-  Do **not** add zap/zerolog/logrus.
+* **Logging** — one Zap logger: JSON to stdout *and* OTLP, correlated with
+  `trace_id`. Use `ops.Log(ctx).Info/Error/Warn/Debug` and do not add a second logger.
 * **Metrics** — HTTP instrumentation happens once around the whole router
   (`telemetry.Middleware(ops, handler)`): requests/duration/inflight/
   response+body size/error totals plus runtime (GC, memory, goroutines).
@@ -219,7 +219,7 @@ Everything below exists because the library does it natively:
   operations that actually deserve a span:
 
 ```go
-err := ops.WithSpan("riders.process", func(ctx context.Context) error {
+err := ops.Span(ctx, "riders.process", func(ctx context.Context) error {
     return s.repo.Requested(ctx, order)
 })
 ```

@@ -11,7 +11,6 @@ import (
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -20,32 +19,17 @@ import (
 
 // Service implements driver use cases.
 type Service struct {
-	tel        telemetry.Client
+	tel        *telemetry.Telemetry
 	repository interface {
 		Accepted(context.Context, AcceptedInput) (Order, error)
 	}
-
-	// Metrics
-	acceptedTotal    metric.Int64Counter
-	acceptedDuration metric.Int64Histogram
 }
 
 // NewService creates a driver service.
-func NewService(tel telemetry.Client, repository interface {
+func NewService(tel *telemetry.Telemetry, repository interface {
 	Accepted(context.Context, AcceptedInput) (Order, error)
 }) *Service {
-	if tel == nil {
-		tel, _ = telemetry.New()
-	}
-	s := &Service{tel: tel, repository: repository}
-
-	// Initialize metrics
-	if tel != nil && tel.Metric() != nil {
-		s.acceptedTotal, _ = tel.Metric().Counter("drivers.accepted.total")
-		s.acceptedDuration, _ = tel.Metric().Histogram("drivers.accepted.duration_seconds")
-	}
-
-	return s
+	return &Service{tel: tel, repository: repository}
 }
 
 // Accepted handles the order acceptance use case.
@@ -54,10 +38,11 @@ func (s *Service) Accepted(ctx context.Context, input AcceptedInput) (OrderOutpu
 	var err error
 
 	if s.tel != nil {
-		err = s.tel.Worker("drivers.accepted", func(ctx context.Context) error {
+		work := func(ctx context.Context) error {
 			result, err = s.doAccepted(ctx, input)
 			return err
-		}, attribute.String("driver_id", input.DriverID), attribute.String("order_id", input.OrderID))
+		}
+		err = s.tel.WorkerContext(ctx, "drivers.accepted", work, attribute.String("driver_id", input.DriverID), attribute.String("order_id", input.OrderID))
 	} else {
 		result, err = s.doAccepted(ctx, input)
 	}
@@ -69,11 +54,10 @@ func (s *Service) doAccepted(ctx context.Context, input AcceptedInput) (OrderOut
 	start := time.Now()
 	status := "success"
 	defer func() {
-		if s.acceptedTotal != nil {
-			s.acceptedTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("status", status)))
-		}
-		if s.acceptedDuration != nil {
-			s.acceptedDuration.Record(ctx, time.Since(start).Milliseconds(), metric.WithAttributes(attribute.String("status", status)))
+		if s.tel != nil {
+			m := s.tel.Metric(ctx)
+			_ = m.Counter("drivers.accepted.total", 1, attribute.String("status", status))
+			_ = m.Histogram("drivers.accepted.duration_seconds", time.Since(start).Seconds(), attribute.String("status", status))
 		}
 	}()
 
@@ -110,6 +94,8 @@ func (s *Service) doAccepted(ctx context.Context, input AcceptedInput) (OrderOut
 		return OrderOutput{}, err
 	}
 
-	s.tel.Info("order accepted", "order_id", input.OrderID, "driver_id", input.DriverID)
+	if s.tel != nil {
+		s.tel.Log(ctx).Info("order accepted", "order_id", input.OrderID, "driver_id", input.DriverID)
+	}
 	return OrderOutput(order), nil
 }

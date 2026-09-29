@@ -32,11 +32,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	ops, err := telemetry.New()
+	ops, err := telemetry.New(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = ops.Close() }()
+	defer func() { _ = ops.Close(ctx) }()
 
 	socket := sockets.NewServer(ops)
 	orderRequestConsumer, err := sockets.NewOrderRequestConsumer(ctx, ops, socket)
@@ -51,12 +51,12 @@ func run() error {
 	defer func() { _ = orderAcceptedConsumer.Close() }()
 
 	go func() {
-		_ = ops.Worker("socket.consume.order_requested", func(ctx context.Context) error {
+		_ = ops.WorkerContext(ctx, "socket.consume.order_requested", func(ctx context.Context) error {
 			return orderRequestConsumer.RunContext(ctx)
 		}, attribute.String("consumer", "order-requested"))
 	}()
 	go func() {
-		_ = ops.Worker("socket.consume.order_accepted", func(ctx context.Context) error {
+		_ = ops.WorkerContext(ctx, "socket.consume.order_accepted", func(ctx context.Context) error {
 			return orderAcceptedConsumer.RunContext(ctx)
 		}, attribute.String("consumer", "order-accepted"))
 	}()
@@ -67,10 +67,10 @@ func run() error {
 	mux.Handle("/ready", ops.Ready())
 	mux.Handle("/health", ops.Health())
 
-	ops.Info("fast-sockets started", "port", cfg.Port)
-	err = platform.Run(ctx, cfg, platform.NewServer(cfg, ops, telemetry.Middleware(ops, mux)))
+	ops.Log(ctx).Info("fast-sockets started", "port", cfg.Port)
+	err = platform.Run(ctx, cfg, platform.NewServer(cfg, ops, mux))
 	if err != nil && !errors.Is(err, context.Canceled) {
-		ops.Error("runtime error", "error", err)
+		ops.Log(ctx).Error("runtime error", "error", err)
 		return err
 	}
 	return nil
