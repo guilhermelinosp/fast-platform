@@ -106,7 +106,7 @@ require (
 	github.com/guilhermelinosp/hellnet-lib-cache v1.1.18-0.20260928235159-e3ed0404291b
 	github.com/guilhermelinosp/hellnet-lib-database v1.0.2-0.20260928234426-586a9096e4fa
 	github.com/guilhermelinosp/hellnet-lib-kafka v1.6.11-0.20260928234426-459087730bb4
-	github.com/guilhermelinosp/hellnet-lib-telemetry v1.5.6-0.20260929014512-b436c3c2c701
+	github.com/guilhermelinosp/hellnet-lib-telemetry v1.5.6-0.20260929015106-ea68329eaeac
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
 	github.com/zishang520/socket.io/servers/socket/v3 v3.0.5
