@@ -37,28 +37,28 @@ func run() error {
 	}
 	defer func() { _ = ops.Close(ctx) }()
 
-	db, err := database.NewWithOptions(ctx, database.LoadFromEnv(), database.WithInstrumentation(ops))
+	db, err := database.New(ctx, ops)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = db.Close() }()
 
-	c, err := cache.NewWithOptions(ctx, cache.WithInstrumentation(ops))
+	c, err := cache.New(ctx, ops)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = c.Close() }()
 
-	orderRequestedProducer, err := kafka.NewProducer[orders.OrderRequested](ctx, ops, kafka.WithInstrumentation(ops))
+	orderRequestedProducer, err := kafka.NewProducer[orders.OrderRequested](ctx, ops)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = orderRequestedProducer.Close() }()
-	orderAcceptedProducer, err := kafka.NewProducer[orders.OrderAccepted](ctx, ops, kafka.WithInstrumentation(ops))
+	defer func() { _ = orderRequestedProducer.Shutdown(context.WithoutCancel(ctx)) }()
+	orderAcceptedProducer, err := kafka.NewProducer[orders.OrderAccepted](ctx, ops)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = orderAcceptedProducer.Close() }()
+	defer func() { _ = orderAcceptedProducer.Shutdown(context.WithoutCancel(ctx)) }()
 
 	producer := listeners.NewProducer(orderRequestedProducer, orderAcceptedProducer)
 	listener, err := listeners.NewListener(ctx, ops, db, producer)

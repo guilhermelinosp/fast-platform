@@ -13,8 +13,13 @@ import (
 	"uuid"
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
-	"github.com/guilhermelinosp/hellnet-lib-cache/cache"
 )
+
+// offerCache is the context-first cache port used to coalesce matches per
+// order; *cache.HybridCache satisfies it.
+type offerCache interface {
+	GetOrSetContext(ctx context.Context, key string, out any, factory func(context.Context) (any, error), ttl time.Duration) error
+}
 
 // Repository is the matching persistence port.
 type Repository interface {
@@ -26,11 +31,11 @@ type Repository interface {
 // the same order does not re-run the match and cache misses coalesce.
 type Service struct {
 	repository Repository
-	cache      cache.Cache
+	cache      offerCache
 }
 
 // NewService creates a matching service.
-func NewService(repository Repository, c cache.Cache) *Service {
+func NewService(repository Repository, c offerCache) *Service {
 	return &Service{repository: repository, cache: c}
 }
 
@@ -52,7 +57,7 @@ func (s *Service) Match(ctx context.Context, orderID string) (OfferOutput, error
 		return OfferOutput(offer), nil
 	}
 
-	err := s.cache.GetOrSet("matching:offer:"+orderID, &out, func(context.Context) (any, error) {
+	err := s.cache.GetOrSetContext(ctx, "matching:offer:"+orderID, &out, func(ctx context.Context) (any, error) {
 		offer, err := s.repository.Match(ctx, orderID)
 		if err != nil {
 			return nil, err

@@ -15,9 +15,11 @@ type execFn func(sql string, args ...any) (int64, error)
 
 // transactional runs fn inside a database transaction. It is a package
 // variable so tests can replace it with a fake that records statements.
-var transactional = func(db *database.DB, fn func(execute execFn) error) error {
-	return db.Transactional(func(tx *database.Tx) error {
-		return fn(tx.Execute)
+var transactional = func(ctx context.Context, db *database.DB, fn func(execute execFn) error) error {
+	return db.TransactionalContext(ctx, func(ctx context.Context, tx *database.Tx) error {
+		return fn(func(sql string, args ...any) (int64, error) {
+			return tx.ExecuteContext(ctx, sql, args...)
+		})
 	})
 }
 
@@ -28,9 +30,8 @@ func NewRepository(db *database.DB) *Database {
 
 // Requested persists a requested ride and its outbox event.
 func (r *Database) Requested(ctx context.Context, input OrderRequestedInput) (Order, error) {
-	_ = ctx
 	var order Order
-	err := transactional(r.db, func(execute execFn) error {
+	err := transactional(ctx, r.db, func(execute execFn) error {
 		if _, err := execute(
 			"INSERT INTO orders (id, rider_id, pickup_latitude, pickup_longitude, destination_latitude, destination_longitude) VALUES ($1, $2, $3, $4, $5, $6)",
 			input.ID,

@@ -8,6 +8,7 @@ import (
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-kafka/kafka"
+	"github.com/guilhermelinosp/hellnet-lib-telemetry/instrument"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -19,7 +20,7 @@ type MatchService interface {
 }
 
 // NewConsumer builds a Kafka consumer that matches incoming ride requests.
-func NewConsumer(ctx context.Context, ops telemetry.Client, service MatchService) (*kafka.Consumer[orders.OrderRequested], error) {
+func NewConsumer(ctx context.Context, ops *telemetry.Telemetry, service MatchService) (*kafka.Consumer[orders.OrderRequested], error) {
 	if service == nil {
 		return nil, platform.NewError(http.StatusInternalServerError, "INTERNAL", "matching: service is nil")
 	}
@@ -34,7 +35,12 @@ func NewConsumer(ctx context.Context, ops telemetry.Client, service MatchService
 			return matchEvent(ctx, event, service)
 		})
 	})
-	consumer, err := kafka.NewConsumer[orders.OrderRequested](ctx, ops, kafka.WithInstrumentation(platform.Instrumentation(ops)))
+	// A nil *Telemetry must not become a non-nil interface holding a nil pointer.
+	var inst instrument.Instrumentation
+	if ops != nil {
+		inst = ops
+	}
+	consumer, err := kafka.NewConsumer[orders.OrderRequested](ctx, inst)
 	if err != nil {
 		return nil, err
 	}

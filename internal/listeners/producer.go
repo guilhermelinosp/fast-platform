@@ -1,6 +1,7 @@
 package listeners
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
@@ -23,20 +24,20 @@ func NewProducer(requested *kafka.Producer[orders.OrderRequested], accepted *kaf
 }
 
 // Publish decodes and publishes a single outbox event to Kafka.
-func (p *Producer) Publish(event Event) error {
+func (p *Producer) Publish(ctx context.Context, event Event) error {
 	switch event.EventType {
 	case (orders.OrderRequested{}).MessageType():
 		var message orders.OrderRequested
 		if err := json.Unmarshal(event.Payload, &message); err != nil {
 			return platform.WrapError(platform.NewError(500, "OUTBOX_DECODE", "decode order requested event"), err)
 		}
-		return p.requested.Publish(message)
+		return p.requested.PublishContext(ctx, message)
 	case (orders.OrderAccepted{}).MessageType():
 		var message orders.OrderAccepted
 		if err := json.Unmarshal(event.Payload, &message); err != nil {
 			return platform.WrapError(platform.NewError(500, "OUTBOX_DECODE", "decode order accepted event"), err)
 		}
-		return p.accepted.Publish(message)
+		return p.accepted.PublishContext(ctx, message)
 	default:
 		return platform.NewError(500, "UNSUPPORTED_EVENT", "unsupported outbox event type "+event.EventType)
 	}

@@ -13,38 +13,38 @@ import (
 
 // outboxStore reads pending outbox rows and records publication audit rows.
 type outboxStore interface {
-	QueryRow(id string) (Event, bool, error)
-	QueryPending() ([]Event, error)
-	RecordPublished(id string) error
-	RecordFailure(id string, reason string) error
+	QueryRow(ctx context.Context, id string) (Event, bool, error)
+	QueryPending(ctx context.Context) ([]Event, error)
+	RecordPublished(ctx context.Context, id string) error
+	RecordFailure(ctx context.Context, id string, reason string) error
 }
 
 // Database is the PostgreSQL-backed outboxStore.
 type Database struct{ db *database.DB }
 
 // QueryRow returns a single pending outbox event by id.
-func (s Database) QueryRow(id string) (Event, bool, error) {
-	return database.QueryRow[Event](s.db, `SELECT id, event_type, event_version, payload FROM outbox_events WHERE id = $1`, id)
+func (s Database) QueryRow(ctx context.Context, id string) (Event, bool, error) {
+	return database.QueryRowContext[Event](ctx, s.db, `SELECT id, event_type, event_version, payload FROM outbox_events WHERE id = $1`, id)
 }
 
 // QueryPending returns events that have no successful publication yet.
 // Tables are append-only (INSERT/SELECT only), so "already published" is
 // derived from outbox_publications instead of mutating outbox_events.
-func (s Database) QueryPending() ([]Event, error) {
-	return database.Query[Event](s.db, `SELECT id, event_type, event_version, payload FROM outbox_events e WHERE NOT EXISTS (SELECT 1 FROM outbox_publications p WHERE p.event_id = e.id) ORDER BY occurred_at LIMIT 100`)
+func (s Database) QueryPending(ctx context.Context) ([]Event, error) {
+	return database.QueryContext[Event](ctx, s.db, `SELECT id, event_type, event_version, payload FROM outbox_events e WHERE NOT EXISTS (SELECT 1 FROM outbox_publications p WHERE p.event_id = e.id) ORDER BY occurred_at LIMIT 100`)
 }
 
 // RecordPublished audits a successfully published event. The outbox_events row
 // itself is never updated — the NOT EXISTS guard in QueryPending is what
 // prevents re-publication.
-func (s Database) RecordPublished(id string) error {
-	_, err := s.db.Execute(`INSERT INTO outbox_publications (id, event_id, published_at) SELECT gen_random_uuid(), $1, now() WHERE NOT EXISTS (SELECT 1 FROM outbox_publications WHERE event_id = $1)`, id)
+func (s Database) RecordPublished(ctx context.Context, id string) error {
+	_, err := s.db.ExecuteContext(ctx, `INSERT INTO outbox_publications (id, event_id, published_at) SELECT gen_random_uuid(), $1, now() WHERE NOT EXISTS (SELECT 1 FROM outbox_publications WHERE event_id = $1)`, id)
 	return err
 }
 
 // RecordFailure audits a failed event publication.
-func (s Database) RecordFailure(id string, reason string) error {
-	_, err := s.db.Execute(`INSERT INTO outbox_publication_failures (id, event_id, error, failed_at) VALUES (gen_random_uuid(), $1, $2, now())`, id, reason)
+func (s Database) RecordFailure(ctx context.Context, id string, reason string) error {
+	_, err := s.db.ExecuteContext(ctx, `INSERT INTO outbox_publication_failures (id, event_id, error, failed_at) VALUES (gen_random_uuid(), $1, $2, now())`, id, reason)
 	return err
 }
 
@@ -114,7 +114,7 @@ func (m *outboxMemo) settle(id string) {
 
 // eventPublisher is the port the listener uses to publish a single event.
 type eventPublisher interface {
-	Publish(event Event) error
+	Publish(ctx context.Context, event Event) error
 }
 
 // Listener manages the PostgreSQL NOTIFY listener and reconciliation loop.
@@ -163,7 +163,7 @@ func (l *Listener) onNotification(id string) {
 		if !l.memo.start(id) {
 			return
 		}
-		event, found, err := l.store.QueryRow(id)
+		event, found, err := l.store.QueryRow(l.ctx, id)
 		if err != nil {
 			l.memo.release(id)
 			l.ops.Log(l.ctx).Error("outbox select failed", "error", err, "event_id", id)
@@ -175,7 +175,7 @@ func (l *Listener) onNotification(id string) {
 			return
 		}
 		if err := l.publishWithSpan(event); err != nil {
-			if auditErr := l.store.RecordFailure(id, err.Error()); auditErr != nil {
+			if auditErr := l.store.RecordFailure(l.ctx, id, err.Error()); auditErr != nil {
 				l.ops.Log(l.ctx).Error("outbox failure audit insert failed", "error", auditErr, "event_id", id)
 			}
 			l.memo.release(id)
@@ -183,7 +183,7 @@ func (l *Listener) onNotification(id string) {
 			l.incrementCounter("outbox.publish.errors.total")
 			return
 		}
-		if auditErr := l.store.RecordPublished(id); auditErr != nil {
+		if auditErr := l.store.RecordPublished(l.ctx, id); auditErr != nil {
 			l.ops.Log(l.ctx).Error("outbox publication audit insert failed", "error", auditErr, "event_id", id)
 		}
 		l.memo.settle(id)
@@ -195,12 +195,12 @@ func (l *Listener) onNotification(id string) {
 // Kafka cria o span filho kafka.publish e propaga o traceparent no header.
 func (l *Listener) publishWithSpan(event Event) error {
 	if l.ops == nil {
-		return l.publisher.Publish(event)
+		return l.publisher.Publish(l.ctx, event)
 	}
 	return l.ops.Trace(l.ctx).Span("outbox.publish", func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 		span.SetAttributes(attribute.String("event_type", event.EventType))
-		return l.publisher.Publish(event)
+		return l.publisher.Publish(ctx, event)
 	})
 }
 
@@ -224,7 +224,7 @@ func (l *Listener) reconcileLoop() {
 }
 
 func (l *Listener) reconcileOnce() {
-	events, err := l.store.QueryPending()
+	events, err := l.store.QueryPending(l.ctx)
 	if err != nil {
 		l.ops.Log(l.ctx).Error("outbox reconciliation failed", "error", err)
 		l.incrementCounter("outbox.reconcile.errors.total")
@@ -235,7 +235,7 @@ func (l *Listener) reconcileOnce() {
 			continue
 		}
 		if err := l.publishWithSpan(event); err != nil {
-			if auditErr := l.store.RecordFailure(event.ID, err.Error()); auditErr != nil {
+			if auditErr := l.store.RecordFailure(l.ctx, event.ID, err.Error()); auditErr != nil {
 				l.ops.Log(l.ctx).Error("outbox failure audit failed", "error", auditErr, "event_id", event.ID)
 			}
 			l.memo.release(event.ID)
@@ -243,7 +243,7 @@ func (l *Listener) reconcileOnce() {
 			l.incrementCounter("outbox.publish.errors.total")
 			continue
 		}
-		if auditErr := l.store.RecordPublished(event.ID); auditErr != nil {
+		if auditErr := l.store.RecordPublished(l.ctx, event.ID); auditErr != nil {
 			l.ops.Log(l.ctx).Error("outbox publication audit failed", "error", auditErr, "event_id", event.ID)
 		}
 		l.memo.settle(event.ID)
