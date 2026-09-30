@@ -45,7 +45,7 @@ func NewOrderRequestConsumer(ctx context.Context, ops *telemetry.Telemetry, emit
 			return emitter.EmitRequested(event)
 		})
 	}
-	consumer, err := kafka.NewConsumer[orders.OrderRequested](ctx, ops, kafka.WithInstrumentation(ops))
+	consumer, err := kafka.NewConsumerWithOptions[orders.OrderRequested](ctx, kafka.WithInstrumentation(ops))
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func NewOrderAcceptedConsumer(ctx context.Context, ops *telemetry.Telemetry, emi
 			return emitter.EmitAccepted(event)
 		})
 	}
-	consumer, err := kafka.NewConsumer[orders.OrderAccepted](ctx, ops, kafka.WithInstrumentation(ops))
+	consumer, err := kafka.NewConsumerWithOptions[orders.OrderAccepted](ctx, kafka.WithInstrumentation(ops))
 	if err != nil {
 		return nil, err
 	}

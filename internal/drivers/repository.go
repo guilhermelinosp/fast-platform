@@ -16,9 +16,11 @@ type execFn func(sql string, args ...any) (int64, error)
 
 // transactional runs fn inside a database transaction. It is a package
 // variable so tests can replace it with a fake that records statements.
-var transactional = func(db *database.DB, fn func(execute execFn) error) error {
-	return db.Transactional(func(tx *database.Tx) error {
-		return fn(tx.Execute)
+var transactional = func(ctx context.Context, db *database.DB, fn func(execute execFn) error) error {
+	return db.TransactionalContext(ctx, func(ctx context.Context, tx *database.Tx) error {
+		return fn(func(sql string, args ...any) (int64, error) {
+			return tx.ExecuteContext(ctx, sql, args...)
+		})
 	})
 }
 
@@ -32,9 +34,8 @@ func NewRepository(db *database.DB) *Database { return &Database{db: db} }
 // SELECT guarded by the current state. A zero-row result means the guard
 // failed, and the transaction aborts with the matching domain error.
 func (r *Database) Accepted(ctx context.Context, input AcceptedInput) (Order, error) {
-	_ = ctx
 	var order Order
-	err := transactional(r.db, func(execute execFn) error {
+	err := transactional(ctx, r.db, func(execute execFn) error {
 		if _, err := execute("INSERT INTO order_acceptances (id, order_id, driver_id) VALUES ($1::uuid, $2::uuid, $3::uuid)", input.AcceptanceID, input.OrderID, input.DriverID); err != nil {
 			return err
 		}

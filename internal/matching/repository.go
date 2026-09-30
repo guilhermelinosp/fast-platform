@@ -23,10 +23,11 @@ type driverFn func() (string, bool, error)
 // transactional runs fn inside a database transaction, handing it the execute
 // seam and a driver-selection closure built on the same transaction. Package
 // variable so tests can replace it with a fake.
-var transactional = func(db *database.DB, fn func(execute execFn, driver driverFn) error) error {
-	return db.Transactional(func(tx *database.Tx) error {
-		return fn(tx.Execute, func() (string, bool, error) {
-			row, found, err := database.TxQueryRow[availableDriverRow](tx, `
+var transactional = func(ctx context.Context, db *database.DB, fn func(execute execFn, driver driverFn) error) error {
+	return db.TransactionalContext(ctx, func(ctx context.Context, tx *database.Tx) error {
+		execute := func(sql string, args ...any) (int64, error) { return tx.ExecuteContext(ctx, sql, args...) }
+		return fn(execute, func() (string, bool, error) {
+			row, found, err := database.TxQueryRowContext[availableDriverRow](ctx, tx, `
 SELECT e.driver_id FROM driver_availability_events e
 LEFT JOIN driver_availability_events newer ON newer.driver_id = e.driver_id AND newer.occurred_at > e.occurred_at
 WHERE e.available AND newer.driver_id IS NULL
@@ -50,9 +51,8 @@ func NewRepository(db *database.DB) *Database { return &Database{db: db} }
 // is idempotent: an order with an existing offer is reported via
 // ErrRideAlreadyMatched without inserting a duplicate.
 func (r *Database) Match(ctx context.Context, orderID string) (Offer, error) {
-	_ = ctx
 	var offer Offer
-	err := transactional(r.db, func(execute execFn, driver driverFn) error {
+	err := transactional(ctx, r.db, func(execute execFn, driver driverFn) error {
 		driverID, found, err := driver()
 		if err != nil {
 			return err

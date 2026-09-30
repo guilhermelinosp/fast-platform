@@ -19,7 +19,7 @@ type MatchService interface {
 }
 
 // NewConsumer builds a Kafka consumer that matches incoming ride requests.
-func NewConsumer(ctx context.Context, ops telemetry.Client, service MatchService) (*kafka.Consumer[orders.OrderRequested], error) {
+func NewConsumer(ctx context.Context, ops *telemetry.Telemetry, service MatchService) (*kafka.Consumer[orders.OrderRequested], error) {
 	if service == nil {
 		return nil, platform.NewError(http.StatusInternalServerError, "INTERNAL", "matching: service is nil")
 	}
@@ -34,7 +34,11 @@ func NewConsumer(ctx context.Context, ops telemetry.Client, service MatchService
 			return matchEvent(ctx, event, service)
 		})
 	})
-	consumer, err := kafka.NewConsumer[orders.OrderRequested](ctx, ops, kafka.WithInstrumentation(platform.Instrumentation(ops)))
+	var options []kafka.Option
+	if ops != nil {
+		options = append(options, kafka.WithInstrumentation(ops))
+	}
+	consumer, err := kafka.NewConsumerWithOptions[orders.OrderRequested](ctx, options...)
 	if err != nil {
 		return nil, err
 	}
