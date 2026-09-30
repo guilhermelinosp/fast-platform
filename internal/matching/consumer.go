@@ -8,6 +8,7 @@ import (
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-kafka/kafka"
+	"github.com/guilhermelinosp/hellnet-lib-telemetry/instrument"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -34,11 +35,12 @@ func NewConsumer(ctx context.Context, ops *telemetry.Telemetry, service MatchSer
 			return matchEvent(ctx, event, service)
 		})
 	})
-	var options []kafka.Option
+	// A nil *Telemetry must not become a non-nil interface holding a nil pointer.
+	var inst instrument.Instrumentation
 	if ops != nil {
-		options = append(options, kafka.WithInstrumentation(ops))
+		inst = ops
 	}
-	consumer, err := kafka.NewConsumerWithOptions[orders.OrderRequested](ctx, options...)
+	consumer, err := kafka.NewConsumer[orders.OrderRequested](ctx, inst)
 	if err != nil {
 		return nil, err
 	}

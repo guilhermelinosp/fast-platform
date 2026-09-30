@@ -41,7 +41,7 @@ func run() error {
 	}
 	defer func() { _ = ops.Close(ctx) }()
 
-	db, err := database.NewWithOptions(ctx, database.WithInstrumentation(ops))
+	db, err := database.New(ctx, ops)
 	if err != nil {
 		return err
 	}
