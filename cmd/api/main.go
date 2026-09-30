@@ -45,6 +45,7 @@ func run() error {
 		return err
 	}
 	defer func() { _ = db.Close() }()
+	platform.Warmup(ctx, ops, "database", db.PingContext)
 
 	router := platform.NewRouter(cfg, ops)
 	riderService := orders.NewService(ops, orders.NewRepository(db))

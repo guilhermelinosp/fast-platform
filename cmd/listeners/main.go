@@ -44,17 +44,20 @@ func run() error {
 		return err
 	}
 	defer func() { _ = db.Close() }()
+	platform.Warmup(ctx, ops, "database", db.PingContext)
 
 	orderRequestedProducer, err := kafka.NewProducer[orders.OrderRequested](ctx, ops)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = orderRequestedProducer.Shutdown(context.WithoutCancel(ctx)) }()
+	platform.Warmup(ctx, ops, "kafka.order_requested", orderRequestedProducer.Ping)
 	orderAcceptedProducer, err := kafka.NewProducer[orders.OrderAccepted](ctx, ops)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = orderAcceptedProducer.Shutdown(context.WithoutCancel(ctx)) }()
+	platform.Warmup(ctx, ops, "kafka.order_accepted", orderAcceptedProducer.Ping)
 
 	producer := listeners.NewProducer(orderRequestedProducer, orderAcceptedProducer)
 	listener, err := listeners.NewListener(ctx, ops, db, producer)
