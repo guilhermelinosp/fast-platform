@@ -9,14 +9,13 @@ import (
 	"github.com/guilhermelinosp/fast-platform-modular/internal/drivers"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
-	"github.com/guilhermelinosp/fast-platform-modular/internal/process"
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 )
 
 func main() {
 	if err := run(); err != nil {
-		process.Fatal("fast-platform", err)
+		platform.Fatal("fast-platform", err)
 		os.Exit(1)
 	}
 }
@@ -25,7 +24,7 @@ func main() {
 // publisher are owned by cmd/listeners and the Socket.IO gateway by
 // cmd/sockets.
 func run() error {
-	ctx, stop, err := process.Context()
+	ctx, stop, err := platform.Context()
 	if err != nil {
 		return err
 	}

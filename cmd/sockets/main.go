@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
-	"github.com/guilhermelinosp/fast-platform-modular/internal/process"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/sockets"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/instrument"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
@@ -16,14 +15,14 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		process.Fatal("fast-sockets", err)
+		platform.Fatal("fast-sockets", err)
 		os.Exit(1)
 	}
 }
 
 // run starts the Socket.IO gateway and its Kafka notification consumers.
 func run() error {
-	ctx, stop, err := process.Context()
+	ctx, stop, err := platform.Context()
 	if err != nil {
 		return err
 	}

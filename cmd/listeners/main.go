@@ -7,7 +7,7 @@ import (
 	"github.com/guilhermelinosp/fast-platform-modular/internal/listeners"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/matching"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
-	"github.com/guilhermelinosp/fast-platform-modular/internal/process"
+	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-cache/cache"
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
 	"github.com/guilhermelinosp/hellnet-lib-kafka/kafka"
@@ -18,7 +18,7 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		process.Fatal("fast-listeners", err)
+		platform.Fatal("fast-listeners", err)
 		os.Exit(1)
 	}
 }
@@ -26,7 +26,7 @@ func main() {
 // run starts durable event publication and matching consumers. It does not
 // open an HTTP listener; cmd/api and cmd/sockets own network servers.
 func run() error {
-	ctx, stop, err := process.Context()
+	ctx, stop, err := platform.Context()
 	if err != nil {
 		return err
 	}
