@@ -53,15 +53,29 @@ func NewConfig() (*Config, error) {
 		WriteTimeout:       env.Duration("WRITE_TIMEOUT", 30*time.Second),
 		IdleTimeout:        env.Duration("IDLE_TIMEOUT", 120*time.Second),
 		ReadHeaderTimeout:  env.Duration("READ_HEADER_TIMEOUT", 10*time.Second),
-		CORSAllowedOrigins: env.Slice("CORS_ALLOWED_ORIGINS"),
+		CORSAllowedOrigins: csvEnv("CORS_ALLOWED_ORIGINS"),
 		BodyLimit:          int64(env.Int("BODY_LIMIT", 1048576)),
 		ReleaseMode:        !strings.EqualFold(environmentName, "Development"),
-		TrustedProxies:     env.Slice("TRUSTED_PROXIES"),
+		TrustedProxies:     csvEnv("TRUSTED_PROXIES"),
 	}
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
 	return c, nil
+}
+
+func csvEnv(key string) []string {
+	raw := strings.TrimSpace(env.String(key, ""))
+	if raw == "" {
+		return nil
+	}
+	values := make([]string, 0)
+	for _, value := range strings.Split(raw, ",") {
+		if value = strings.TrimSpace(value); value != "" {
+			values = append(values, value)
+		}
+	}
+	return values
 }
 
 // Validate checks the configuration for invalid or inconsistent values.

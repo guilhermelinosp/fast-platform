@@ -15,7 +15,7 @@ import (
 // environment and never own process lifecycle.
 func Context() (context.Context, context.CancelFunc, error) {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	if err := env.LoadDotEnv(); err != nil {
+	if err := env.Environment(); err != nil {
 		stop()
 		return nil, nil, fmt.Errorf("load environment: %w", err)
 	}
