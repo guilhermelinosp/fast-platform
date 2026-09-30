@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
+	"github.com/guilhermelinosp/hellnet-lib-telemetry/instrument"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 )
 
@@ -37,7 +38,8 @@ const warmupTimeout = 5 * time.Second
 // first request, so connection, TLS and SASL setup does not land in the first
 // trace. It is best effort: a failure is logged and never stops startup.
 func Warmup(ctx context.Context, ops *telemetry.Telemetry, name string, fn func(context.Context) error) {
-	ctx, cancel := context.WithTimeout(ctx, warmupTimeout)
+	// Warm-up traffic is not a request: keep it out of the traces.
+	ctx, cancel := context.WithTimeout(instrument.WithoutTracing(ctx), warmupTimeout)
 	defer cancel()
 	started := time.Now()
 	err := fn(ctx)
