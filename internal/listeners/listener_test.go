@@ -3,6 +3,7 @@ package listeners
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -16,6 +17,7 @@ type fakeStore struct {
 	rowCtx    context.Context
 	pending   []Event
 	queryCtx  context.Context
+	sinceArgs []time.Time
 	recorded  []string
 	recordCtx context.Context
 }
@@ -26,8 +28,9 @@ func (s *fakeStore) QueryRow(ctx context.Context, id string) (Event, bool, error
 	return event, ok, nil
 }
 
-func (s *fakeStore) QueryPending(ctx context.Context) ([]Event, error) {
+func (s *fakeStore) QueryPending(ctx context.Context, since time.Time) ([]Event, error) {
 	s.queryCtx = ctx
+	s.sinceArgs = append(s.sinceArgs, since)
 	return s.pending, nil
 }
 
@@ -114,5 +117,31 @@ func TestCorrelationHeaders(t *testing.T) {
 		if got[k] != v {
 			t.Fatalf("header %s = %q, want %q", k, got[k], v)
 		}
+	}
+}
+
+func TestReconcileScansEverythingOnceThenOnlyRecentEvents(t *testing.T) {
+	store := &fakeStore{}
+	l := &Listener{store: store, publisher: &fakePublisher{}, ctx: context.Background(), memo: newOutboxMemo()}
+
+	l.reconcileOnce() // startup: full scan
+	l.reconcileOnce() // next ticks: bounded by the lookback window
+	l.reconcileOnce()
+	if len(store.sinceArgs) != 3 {
+		t.Fatalf("queries = %d, want 3", len(store.sinceArgs))
+	}
+	if !store.sinceArgs[0].IsZero() {
+		t.Fatalf("first reconcile must be a full scan, since = %v", store.sinceArgs[0])
+	}
+	for i, since := range store.sinceArgs[1:] {
+		if age := time.Since(since); since.IsZero() || age < outboxLookback-time.Minute || age > outboxLookback+time.Minute {
+			t.Fatalf("tick %d since = %v (age %v), want about the %v lookback", i+1, since, age, outboxLookback)
+		}
+	}
+
+	l.lastFullScan = time.Now().Add(-outboxFullScanEvery - time.Minute)
+	l.reconcileOnce() // periodic full scan picks up anything older than the window
+	if !store.sinceArgs[3].IsZero() {
+		t.Fatal("the periodic full scan must use a zero since")
 	}
 }
