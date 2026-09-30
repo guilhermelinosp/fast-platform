@@ -34,7 +34,7 @@ func NewConsumer(ctx context.Context, ops telemetry.Client, service MatchService
 			return matchEvent(ctx, event, service)
 		})
 	})
-	consumer, err := kafka.NewConsumer[orders.OrderRequested](ctx, ops)
+	consumer, err := kafka.NewConsumer[orders.OrderRequested](ctx, ops, kafka.WithInstrumentation(platform.Instrumentation(ops)))
 	if err != nil {
 		return nil, err
 	}
