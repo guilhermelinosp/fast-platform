@@ -10,6 +10,7 @@ import (
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service implements rider use cases.
@@ -34,10 +35,13 @@ func (s *Service) Requested(ctx context.Context, input OrderRequestedInput) (Ord
 
 	if s.tel != nil {
 		work := func(ctx context.Context) error {
+			// Identifiers go on the span only: WorkerContext attributes become metric
+			// labels, and order/rider ids would create one series per request.
+			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", input.ID), attribute.String("rider_id", input.RiderID))
 			result, err = s.doRequested(ctx, input)
 			return err
 		}
-		err = s.tel.WorkerContext(ctx, "orders.requested", work, attribute.String("order_id", input.ID), attribute.String("rider_id", input.RiderID))
+		err = s.tel.WorkerContext(ctx, "orders.requested", work)
 	} else {
 		result, err = s.doRequested(ctx, input)
 	}
