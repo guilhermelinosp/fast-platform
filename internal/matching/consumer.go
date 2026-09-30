@@ -31,6 +31,7 @@ func NewConsumer(ctx context.Context, ops *telemetry.Telemetry, service MatchSer
 		}
 		return ops.Trace(ctx).Span("kafka.consume.order_requested", func(ctx context.Context) error {
 			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID))
+			ops.Log(ctx).Info("kafka.consume.order_requested", "order_id", event.OrderID, "event_id", event.EventID)
 			return matchEvent(ctx, event, service)
 		})
 	})

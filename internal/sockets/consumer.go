@@ -23,12 +23,12 @@ func acceptedHandlerSpec() kafka.HandlerSpec {
 
 // RequestedEmitter publishes requested riders to connected driver clients.
 type RequestedEmitter interface {
-	EmitRequested(orders.OrderRequested) error
+	EmitRequested(context.Context, orders.OrderRequested) error
 }
 
 // AcceptedEmitter publishes accepted riders to the subscribed rider client.
 type AcceptedEmitter interface {
-	EmitAccepted(orders.OrderAccepted) error
+	EmitAccepted(context.Context, orders.OrderAccepted) error
 }
 
 // NewOrderRequestConsumer consumes the order-requested topic and emits each event to the
@@ -42,7 +42,7 @@ func NewOrderRequestConsumer(ctx context.Context, ops *telemetry.Telemetry, emit
 			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID), attribute.String("event_id", event.EventID))
 			ops.Log(ctx).Info("kafka.consume.order_requested", "order_id", event.OrderID, "event_id", event.EventID)
 			_ = ops.Metric(ctx).Counter("socket.kafka.consume.order_requested.total", 1)
-			return emitter.EmitRequested(event)
+			return emitter.EmitRequested(ctx, event)
 		})
 	}
 	consumer, err := kafka.NewConsumer[orders.OrderRequested](ctx, ops)
@@ -66,7 +66,7 @@ func NewOrderAcceptedConsumer(ctx context.Context, ops *telemetry.Telemetry, emi
 			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID), attribute.String("driver_id", event.DriverID), attribute.String("event_id", event.EventID))
 			ops.Log(ctx).Info("kafka.consume.order_accepted", "order_id", event.OrderID, "driver_id", event.DriverID, "event_id", event.EventID)
 			_ = ops.Metric(ctx).Counter("socket.kafka.consume.order_accepted.total", 1)
-			return emitter.EmitAccepted(event)
+			return emitter.EmitAccepted(ctx, event)
 		})
 	}
 	consumer, err := kafka.NewConsumer[orders.OrderAccepted](ctx, ops)

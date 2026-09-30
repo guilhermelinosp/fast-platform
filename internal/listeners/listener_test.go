@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -61,5 +63,24 @@ func TestReconcilePropagatesContext(t *testing.T) {
 	}
 	if len(store.recorded) != 1 || store.recorded[0] != "e1" {
 		t.Fatalf("recorded = %v, want [e1]", store.recorded)
+	}
+}
+
+func TestPublishContinuesTraceStoredInPayload(t *testing.T) {
+	tp := sdktrace.NewTracerProvider()
+	defer func() { _ = tp.Shutdown(context.Background()) }()
+	reqCtx, reqSpan := tp.Tracer("api").Start(context.Background(), "request")
+	defer reqSpan.End()
+	payload := platform.InjectTraceContext(reqCtx, []byte(`{"order_id":"o1"}`))
+
+	store := &fakeStore{pending: []Event{{ID: "e1", EventType: "order.requested", Payload: payload}}}
+	pub := &fakePublisher{}
+	l := &Listener{store: store, publisher: pub, ctx: context.Background(), memo: newOutboxMemo()}
+
+	l.reconcileOnce()
+
+	got := trace.SpanContextFromContext(pub.ctx)
+	if !got.IsValid() || got.TraceID() != reqSpan.SpanContext().TraceID() {
+		t.Fatalf("publish trace id = %s, want the request trace %s", got.TraceID(), reqSpan.SpanContext().TraceID())
 	}
 }

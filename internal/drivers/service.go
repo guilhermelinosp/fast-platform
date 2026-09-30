@@ -70,6 +70,7 @@ func (s *Service) doAccepted(ctx context.Context, input AcceptedInput) (OrderOut
 		return OrderOutput{}, platform.ValidationError("driver_id", "must be a UUID")
 	}
 	input.Payload, _ = json.Marshal(orders.OrderAccepted{EventID: input.OutboxID, EventVersion: 1, OccurredAt: time.Now().UnixMilli(), OrderID: input.OrderID, DriverID: input.DriverID})
+	input.Payload = platform.InjectTraceContext(ctx, input.Payload)
 	input.EventType = (orders.OrderAccepted{}).MessageType()
 	var order Order
 	err := s.tel.Trace(ctx).Span("db.drivers.accepted", func(ctx context.Context) error {

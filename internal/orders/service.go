@@ -80,6 +80,7 @@ func (s *Service) doRequested(ctx context.Context, input OrderRequestedInput) (O
 		DestinationLatitude:  input.DestinationLatitude,
 		DestinationLongitude: input.DestinationLongitude,
 	})
+	input.Payload = platform.InjectTraceContext(ctx, input.Payload)
 	input.EventType = (OrderRequested{}).MessageType()
 
 	var order Order

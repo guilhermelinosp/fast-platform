@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/instrument"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
@@ -195,13 +196,21 @@ func (l *Listener) onNotification(id string) {
 // publishWithSpan publica o evento dentro de um span de outbox. O producer
 // Kafka cria o span filho kafka.publish e propaga o traceparent no header.
 func (l *Listener) publishWithSpan(event Event) error {
+	// Continue the trace of the request that wrote the event (stored in the
+	// payload), so API -> outbox -> Kafka -> consumers form a single trace.
+	parent := platform.ExtractTraceContext(l.ctx, event.Payload)
 	if l.ops == nil {
-		return l.publisher.Publish(l.ctx, event)
+		return l.publisher.Publish(parent, event)
 	}
-	return l.ops.Trace(l.ctx).Span("outbox.publish", func(ctx context.Context) error {
+	return l.ops.Trace(parent).Span("outbox.publish", func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 		span.SetAttributes(attribute.String("event_type", event.EventType))
-		return l.publisher.Publish(ctx, event)
+		l.ops.Log(ctx).Info("outbox event received", "event_id", event.ID, "event_type", event.EventType)
+		if err := l.publisher.Publish(ctx, event); err != nil {
+			return err
+		}
+		l.ops.Log(ctx).Info("outbox event published to kafka", "event_id", event.ID, "event_type", event.EventType)
+		return nil
 	})
 }
 
