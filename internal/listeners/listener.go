@@ -26,14 +26,14 @@ type Database struct{ db *database.DB }
 
 // QueryRow returns a single pending outbox event by id.
 func (s Database) QueryRow(ctx context.Context, id string) (Event, bool, error) {
-	return database.QueryRowContext[Event](ctx, s.db, `SELECT id, event_type, event_version, payload FROM outbox_events WHERE id = $1`, id)
+	return database.QueryRowContext[Event](ctx, s.db, `SELECT id, aggregate_id, event_type, event_version, payload FROM outbox_events WHERE id = $1`, id)
 }
 
 // QueryPending returns events that have no successful publication yet.
 // Tables are append-only (INSERT/SELECT only), so "already published" is
 // derived from outbox_publications instead of mutating outbox_events.
 func (s Database) QueryPending(ctx context.Context) ([]Event, error) {
-	return database.QueryContext[Event](ctx, s.db, `SELECT id, event_type, event_version, payload FROM outbox_events e WHERE NOT EXISTS (SELECT 1 FROM outbox_publications p WHERE p.event_id = e.id) ORDER BY occurred_at LIMIT 100`)
+	return database.QueryContext[Event](ctx, s.db, `SELECT id, aggregate_id, event_type, event_version, payload FROM outbox_events e WHERE NOT EXISTS (SELECT 1 FROM outbox_publications p WHERE p.event_id = e.id) ORDER BY occurred_at LIMIT 100`)
 }
 
 // RecordPublished audits a successfully published event. The outbox_events row
@@ -53,6 +53,7 @@ func (s Database) RecordFailure(ctx context.Context, id string, reason string) e
 // Event is the durable event envelope stored in PostgreSQL.
 type Event struct {
 	ID           string `db:"id"`
+	AggregateID  string `db:"aggregate_id"`
 	EventType    string `db:"event_type"`
 	EventVersion int    `db:"event_version"`
 	Payload      []byte `db:"payload"`

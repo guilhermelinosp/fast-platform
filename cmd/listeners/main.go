@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/listeners"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/matching"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
@@ -44,12 +45,6 @@ func run() error {
 	}
 	defer func() { _ = db.Close() }()
 
-	c, err := cache.New(ctx, ops)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = c.Close() }()
-
 	orderRequestedProducer, err := kafka.NewProducer[orders.OrderRequested](ctx, ops)
 	if err != nil {
 		return err
@@ -68,19 +63,30 @@ func run() error {
 	}
 	defer listener.Close()
 
-	matchingConsumer, err := matching.NewConsumer(ctx, ops, matching.NewService(matching.NewRepository(db), c))
-	if err != nil {
-		return err
-	}
-	defer func() { _ = matchingConsumer.Close() }()
+	// Matching is on standby: it only runs with MATCHING_ENABLED=true.
+	if env.Bool("MATCHING_ENABLED", false) {
+		c, err := cache.New(ctx, ops)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = c.Close() }()
 
-	// The consumer loop lives as long as the process: tracing it as one job would keep a
-	// root span open for minutes. Each message is traced by the Kafka process span.
-	go func() {
-		_ = ops.WorkerContext(instrument.WithoutTracing(ctx), "matching.consume.order_requested", func(ctx context.Context) error {
-			return matchingConsumer.RunContext(ctx)
-		}, attribute.String("consumer", "matching"))
-	}()
+		matchingConsumer, err := matching.NewConsumer(ctx, ops, matching.NewService(matching.NewRepository(db), c))
+		if err != nil {
+			return err
+		}
+		defer func() { _ = matchingConsumer.Close() }()
+
+		// The consumer loop lives as long as the process: tracing it as one job would keep a
+		// root span open for minutes. Each message is traced by the Kafka process span.
+		go func() {
+			_ = ops.WorkerContext(instrument.WithoutTracing(ctx), "matching.consume.order_requested", func(ctx context.Context) error {
+				return matchingConsumer.RunContext(ctx)
+			}, attribute.String("consumer", "matching"))
+		}()
+	} else {
+		ops.Log(ctx).Info("matching consumer on standby", "enable_with", "MATCHING_ENABLED=true")
+	}
 
 	ops.Log(ctx).Info("fast-listeners started")
 	<-ctx.Done()
