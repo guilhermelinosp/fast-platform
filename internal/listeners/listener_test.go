@@ -12,14 +12,18 @@ import (
 type ctxKey struct{}
 
 type fakeStore struct {
+	byID      map[string]Event
+	rowCtx    context.Context
 	pending   []Event
 	queryCtx  context.Context
 	recorded  []string
 	recordCtx context.Context
 }
 
-func (s *fakeStore) QueryRow(context.Context, string) (Event, bool, error) {
-	return Event{}, false, nil
+func (s *fakeStore) QueryRow(ctx context.Context, id string) (Event, bool, error) {
+	s.rowCtx = ctx
+	event, ok := s.byID[id]
+	return event, ok, nil
 }
 
 func (s *fakeStore) QueryPending(ctx context.Context) ([]Event, error) {
@@ -79,9 +83,27 @@ func TestPublishContinuesTraceStoredInPayload(t *testing.T) {
 
 	l.reconcileOnce()
 
-	got := trace.SpanContextFromContext(pub.ctx)
-	if !got.IsValid() || got.TraceID() != reqSpan.SpanContext().TraceID() {
-		t.Fatalf("publish trace id = %s, want the request trace %s", got.TraceID(), reqSpan.SpanContext().TraceID())
+	want := reqSpan.SpanContext().TraceID()
+	for name, ctx := range map[string]context.Context{"publish": pub.ctx, "audit": store.recordCtx} {
+		got := trace.SpanContextFromContext(ctx)
+		if !got.IsValid() || got.TraceID() != want {
+			t.Fatalf("%s trace id = %s, want the request trace %s (the audit insert must stay in the trace)", name, got.TraceID(), want)
+		}
+	}
+}
+
+func TestNotificationSelectIsNotTraced(t *testing.T) {
+	store := &fakeStore{byID: map[string]Event{"e1": {ID: "e1", EventType: "order.requested"}}}
+	l := &Listener{store: store, publisher: &fakePublisher{}, ctx: context.Background(), memo: newOutboxMemo()}
+
+	l.onNotification("e1")
+	l.workers.Wait()
+
+	if sc := trace.SpanContextFromContext(store.rowCtx); !sc.IsValid() || sc.IsSampled() {
+		t.Fatal("the event SELECT must run under an unsampled span context (no orphan trace per event)")
+	}
+	if len(store.recorded) != 1 || store.recorded[0] != "e1" {
+		t.Fatalf("recorded = %v, want [e1]", store.recorded)
 	}
 }
 

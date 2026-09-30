@@ -166,10 +166,12 @@ func (l *Listener) onNotification(id string) {
 		if !l.memo.start(id) {
 			return
 		}
-		event, found, err := l.store.QueryRow(l.ctx, id)
+		// Selecting the event happens before its trace context is known, so it
+		// is not traced (it would be an orphan trace per event).
+		event, found, err := l.store.QueryRow(instrument.WithoutTracing(l.ctx), id)
 		if err != nil {
 			l.memo.release(id)
-			l.ops.Log(l.ctx).Error("outbox select failed", "error", err, "event_id", id)
+			l.logError(l.ctx, "outbox select failed", "error", err, "event_id", id)
 			l.incrementCounter("outbox.select.errors.total")
 			return
 		}
@@ -177,42 +179,62 @@ func (l *Listener) onNotification(id string) {
 			l.memo.release(id)
 			return
 		}
-		if err := l.publishWithSpan(event); err != nil {
-			if auditErr := l.store.RecordFailure(l.ctx, id, err.Error()); auditErr != nil {
-				l.ops.Log(l.ctx).Error("outbox failure audit insert failed", "error", auditErr, "event_id", id)
-			}
-			l.memo.release(id)
-			l.ops.Log(l.ctx).Error("outbox publish failed; will retry on next reconcile", "error", err, "event_id", id)
-			l.incrementCounter("outbox.publish.errors.total")
-			return
-		}
-		if auditErr := l.store.RecordPublished(l.ctx, id); auditErr != nil {
-			l.ops.Log(l.ctx).Error("outbox publication audit insert failed", "error", auditErr, "event_id", id)
-		}
-		l.memo.settle(id)
-		l.incrementCounter("outbox.events.published.total")
+		l.process(event)
 	})
 }
 
-// publishWithSpan publica o evento dentro de um span de outbox. O producer
-// Kafka cria o span filho kafka.publish e propaga o traceparent no header.
-func (l *Listener) publishWithSpan(event Event) error {
-	// Continue the trace of the request that wrote the event (stored in the
-	// payload), so API -> outbox -> Kafka -> consumers form a single trace.
+// process delivers one event inside an outbox.publish span that continues the
+// trace of the request that wrote it. The publication audit runs in the same
+// span, so it is part of the trace instead of an orphan. The caller must have
+// claimed the event with memo.start.
+func (l *Listener) process(event Event) {
 	parent := platform.ExtractTraceContext(l.ctx, event.Payload)
-	if l.ops == nil {
-		return l.publisher.Publish(parent, event)
-	}
-	return l.ops.Trace(parent).Span("outbox.publish", func(ctx context.Context) error {
-		span := trace.SpanFromContext(ctx)
-		span.SetAttributes(attribute.String("event_type", event.EventType))
-		l.ops.Log(ctx).Info("outbox event received", "event_id", event.ID, "event_type", event.EventType)
+	work := func(ctx context.Context) error {
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String("event_id", event.ID),
+			attribute.String("event_type", event.EventType),
+			attribute.String("order_id", event.AggregateID),
+		)
+		l.logInfo(ctx, "outbox event received", "event_id", event.ID, "event_type", event.EventType)
 		if err := l.publisher.Publish(ctx, event); err != nil {
+			if auditErr := l.store.RecordFailure(ctx, event.ID, err.Error()); auditErr != nil {
+				l.logError(ctx, "outbox failure audit insert failed", "error", auditErr, "event_id", event.ID)
+			}
 			return err
 		}
-		l.ops.Log(ctx).Info("outbox event published to kafka", "event_id", event.ID, "event_type", event.EventType)
+		l.logInfo(ctx, "outbox event published to kafka", "event_id", event.ID, "event_type", event.EventType)
+		if auditErr := l.store.RecordPublished(ctx, event.ID); auditErr != nil {
+			l.logError(ctx, "outbox publication audit insert failed", "error", auditErr, "event_id", event.ID)
+		}
 		return nil
-	})
+	}
+
+	var err error
+	if l.ops == nil {
+		err = work(parent)
+	} else {
+		err = l.ops.Trace(parent).Span("outbox.publish", work)
+	}
+	if err != nil {
+		l.memo.release(event.ID)
+		l.logError(parent, "outbox publish failed; will retry on next reconcile", "error", err, "event_id", event.ID)
+		l.incrementCounter("outbox.publish.errors.total")
+		return
+	}
+	l.memo.settle(event.ID)
+	l.incrementCounter("outbox.events.published.total")
+}
+
+func (l *Listener) logInfo(ctx context.Context, msg string, args ...any) {
+	if l.ops != nil {
+		l.ops.Log(ctx).Info(msg, args...)
+	}
+}
+
+func (l *Listener) logError(ctx context.Context, msg string, args ...any) {
+	if l.ops != nil {
+		l.ops.Log(ctx).Error(msg, args...)
+	}
 }
 
 func (l *Listener) incrementCounter(name string) {
@@ -238,7 +260,7 @@ func (l *Listener) reconcileOnce() {
 	// The poll runs every outboxReloadAt; tracing it would create one trace per tick.
 	events, err := l.store.QueryPending(instrument.WithoutTracing(l.ctx))
 	if err != nil {
-		l.ops.Log(l.ctx).Error("outbox reconciliation failed", "error", err)
+		l.logError(l.ctx, "outbox reconciliation failed", "error", err)
 		l.incrementCounter("outbox.reconcile.errors.total")
 		return
 	}
@@ -246,20 +268,7 @@ func (l *Listener) reconcileOnce() {
 		if !l.memo.start(event.ID) {
 			continue
 		}
-		if err := l.publishWithSpan(event); err != nil {
-			if auditErr := l.store.RecordFailure(l.ctx, event.ID, err.Error()); auditErr != nil {
-				l.ops.Log(l.ctx).Error("outbox failure audit failed", "error", auditErr, "event_id", event.ID)
-			}
-			l.memo.release(event.ID)
-			l.ops.Log(l.ctx).Error("outbox publish failed; will retry on next reconcile", "error", err, "event_id", event.ID)
-			l.incrementCounter("outbox.publish.errors.total")
-			continue
-		}
-		if auditErr := l.store.RecordPublished(l.ctx, event.ID); auditErr != nil {
-			l.ops.Log(l.ctx).Error("outbox publication audit failed", "error", auditErr, "event_id", event.ID)
-		}
-		l.memo.settle(event.ID)
-		l.incrementCounter("outbox.events.published.total")
+		l.process(event)
 	}
 }
 
