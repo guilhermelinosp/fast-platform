@@ -38,12 +38,11 @@ func NewOrderRequestConsumer(ctx context.Context, ops *telemetry.Telemetry, emit
 		return nil, platform.NewError(http.StatusInternalServerError, "INTERNAL", "sockets: requested emitter is nil")
 	}
 	var handler kafka.HandlerFunc[orders.OrderRequested] = func(ctx context.Context, event orders.OrderRequested, kctx kafka.Ctx) error {
-		return ops.Trace(ctx).Span("kafka.consume.order_requested", func(ctx context.Context) error {
-			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID), attribute.String("event_id", event.EventID))
-			ops.Log(ctx).Info("kafka.consume.order_requested", "order_id", event.OrderID, "event_id", event.EventID, "event_type", kctx.Headers["event_type"])
-			_ = ops.Metric(ctx).Counter("socket.kafka.consume.order_requested.total", 1)
-			return emitter.EmitRequested(ctx, event)
-		})
+		// The Kafka library's process span already covers this handler; enrich it.
+		trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID), attribute.String("event_id", event.EventID))
+		ops.Log(ctx).Info("kafka.consume.order_requested", "order_id", event.OrderID, "event_id", event.EventID, "event_type", kctx.Headers["event_type"])
+		_ = ops.Metric(ctx).Counter("socket.kafka.consume.order_requested.total", 1)
+		return emitter.EmitRequested(ctx, event)
 	}
 	consumer, err := kafka.NewConsumer[orders.OrderRequested](ctx, ops)
 	if err != nil {
@@ -62,12 +61,11 @@ func NewOrderAcceptedConsumer(ctx context.Context, ops *telemetry.Telemetry, emi
 		return nil, platform.NewError(http.StatusInternalServerError, "INTERNAL", "sockets: accepted emitter is nil")
 	}
 	var handler kafka.HandlerFunc[orders.OrderAccepted] = func(ctx context.Context, event orders.OrderAccepted, kctx kafka.Ctx) error {
-		return ops.Trace(ctx).Span("kafka.consume.order_accepted", func(ctx context.Context) error {
-			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID), attribute.String("driver_id", event.DriverID), attribute.String("event_id", event.EventID))
-			ops.Log(ctx).Info("kafka.consume.order_accepted", "order_id", event.OrderID, "driver_id", event.DriverID, "event_id", event.EventID, "event_type", kctx.Headers["event_type"])
-			_ = ops.Metric(ctx).Counter("socket.kafka.consume.order_accepted.total", 1)
-			return emitter.EmitAccepted(ctx, event)
-		})
+		// The Kafka library's process span already covers this handler; enrich it.
+		trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID), attribute.String("driver_id", event.DriverID), attribute.String("event_id", event.EventID))
+		ops.Log(ctx).Info("kafka.consume.order_accepted", "order_id", event.OrderID, "driver_id", event.DriverID, "event_id", event.EventID, "event_type", kctx.Headers["event_type"])
+		_ = ops.Metric(ctx).Counter("socket.kafka.consume.order_accepted.total", 1)
+		return emitter.EmitAccepted(ctx, event)
 	}
 	consumer, err := kafka.NewConsumer[orders.OrderAccepted](ctx, ops)
 	if err != nil {

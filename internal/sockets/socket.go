@@ -11,6 +11,8 @@ import (
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"github.com/zishang520/socket.io/servers/socket/v3"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Server is the mobile Socket.IO gateway. Kafka consumers emit durable ride
@@ -62,6 +64,11 @@ func (s *Server) EmitRequested(ctx context.Context, event orders.OrderRequested)
 		return s.drivers.Emit(env.String("KAFKA_TOPIC_ORDER_REQUESTED", ""), event)
 	}
 	return s.ops.Trace(ctx).Span("socket.emit.order_requested", func(ctx context.Context) error {
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String("order_id", event.OrderID),
+			attribute.String("event_id", event.EventID),
+			attribute.String("socket.namespace", "drivers"),
+		)
 		s.ops.Log(ctx).Info("socket.emit.order_requested",
 			"order_id", event.OrderID,
 			"rider_id", event.RiderID,
@@ -78,6 +85,12 @@ func (s *Server) EmitAccepted(ctx context.Context, event orders.OrderAccepted) e
 		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(env.String("KAFKA_TOPIC_ORDER_ACCEPTED", ""), event)
 	}
 	return s.ops.Trace(ctx).Span("socket.emit.order_accepted", func(ctx context.Context) error {
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String("order_id", event.OrderID),
+			attribute.String("event_id", event.EventID),
+			attribute.String("socket.namespace", "riders"),
+			attribute.String("socket.room", orderRoom(event.OrderID)),
+		)
 		s.ops.Log(ctx).Info("socket.emit.order_accepted",
 			"order_id", event.OrderID,
 			"driver_id", event.DriverID,
