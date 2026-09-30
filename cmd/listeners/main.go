@@ -37,24 +37,24 @@ func run() error {
 	}
 	defer func() { _ = ops.Close(ctx) }()
 
-	db, err := database.New(ctx, ops)
+	db, err := database.NewWithOptions(ctx, database.LoadFromEnv(), database.WithInstrumentation(ops))
 	if err != nil {
 		return err
 	}
 	defer func() { _ = db.Close() }()
 
-	c, err := cache.New()
+	c, err := cache.NewWithOptions(ctx, cache.WithInstrumentation(ops))
 	if err != nil {
 		return err
 	}
 	defer func() { _ = c.Close() }()
 
-	orderRequestedProducer, err := kafka.NewProducer[orders.OrderRequested](ctx, ops)
+	orderRequestedProducer, err := kafka.NewProducer[orders.OrderRequested](ctx, ops, kafka.WithInstrumentation(ops))
 	if err != nil {
 		return err
 	}
 	defer func() { _ = orderRequestedProducer.Close() }()
-	orderAcceptedProducer, err := kafka.NewProducer[orders.OrderAccepted](ctx, ops)
+	orderAcceptedProducer, err := kafka.NewProducer[orders.OrderAccepted](ctx, ops, kafka.WithInstrumentation(ops))
 	if err != nil {
 		return err
 	}
