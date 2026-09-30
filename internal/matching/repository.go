@@ -28,10 +28,12 @@ var transactional = func(ctx context.Context, db *database.DB, fn func(execute e
 		execute := func(sql string, args ...any) (int64, error) { return tx.ExecuteContext(ctx, sql, args...) }
 		return fn(execute, func() (string, bool, error) {
 			row, found, err := database.TxQueryRowContext[availableDriverRow](ctx, tx, `
-SELECT e.driver_id FROM driver_availability_events e
-LEFT JOIN driver_availability_events newer ON newer.driver_id = e.driver_id AND newer.occurred_at > e.occurred_at
-WHERE e.available AND newer.driver_id IS NULL
-ORDER BY e.occurred_at
+SELECT e.driver_id
+FROM driver_availability_history e
+JOIN driver_availability_statuses s ON s.id = e.availability_status_id
+LEFT JOIN driver_availability_history newer ON newer.driver_id = e.driver_id AND (newer.occurred_at > e.occurred_at OR (newer.occurred_at = e.occurred_at AND newer.sequence > e.sequence))
+WHERE s.code = 'online' AND newer.driver_id IS NULL
+ORDER BY e.occurred_at, e.sequence
 LIMIT 1`)
 			if err != nil || !found {
 				return "", found, err
