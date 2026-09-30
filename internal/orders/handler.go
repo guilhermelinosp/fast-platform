@@ -8,6 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes the rider HTTP routes.
@@ -63,6 +65,7 @@ func (h *Handler) request(c *gin.Context) {
 		platform.AbortError(c, platform.ValidationError("rider_id", "must be a UUID"))
 		return
 	}
+	trace.SpanFromContext(c.Request.Context()).SetAttributes(attribute.String("order_id", in.ID), attribute.String("rider_id", riderID))
 	input := OrderRequestedInput{
 		ID:                   in.ID,
 		RiderID:              riderID,

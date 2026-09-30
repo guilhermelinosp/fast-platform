@@ -7,22 +7,22 @@ import (
 	"os"
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
-	"github.com/guilhermelinosp/fast-platform-modular/internal/process"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/sockets"
+	"github.com/guilhermelinosp/hellnet-lib-telemetry/instrument"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 )
 
 func main() {
 	if err := run(); err != nil {
-		process.Fatal("fast-sockets", err)
+		platform.Fatal("fast-sockets", err)
 		os.Exit(1)
 	}
 }
 
 // run starts the Socket.IO gateway and its Kafka notification consumers.
 func run() error {
-	ctx, stop, err := process.Context()
+	ctx, stop, err := platform.Context()
 	if err != nil {
 		return err
 	}
@@ -50,13 +50,15 @@ func run() error {
 	}
 	defer func() { _ = orderAcceptedConsumer.Close() }()
 
+	// The consumer loop lives as long as the process: tracing it as one job would keep a
+	// root span open for minutes. Each message is traced by the Kafka process span.
 	go func() {
-		_ = ops.WorkerContext(ctx, "socket.consume.order_requested", func(ctx context.Context) error {
+		_ = ops.WorkerContext(instrument.WithoutTracing(ctx), "socket.consume.order_requested", func(ctx context.Context) error {
 			return orderRequestConsumer.RunContext(ctx)
 		}, attribute.String("consumer", "order-requested"))
 	}()
 	go func() {
-		_ = ops.WorkerContext(ctx, "socket.consume.order_accepted", func(ctx context.Context) error {
+		_ = ops.WorkerContext(instrument.WithoutTracing(ctx), "socket.consume.order_accepted", func(ctx context.Context) error {
 			return orderAcceptedConsumer.RunContext(ctx)
 		}, attribute.String("consumer", "order-accepted"))
 	}()

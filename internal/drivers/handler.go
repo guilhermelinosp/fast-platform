@@ -8,6 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes driver HTTP routes.
@@ -37,6 +39,7 @@ func (h *Handler) accept(c *gin.Context) {
 		return
 	}
 
+	trace.SpanFromContext(c.Request.Context()).SetAttributes(attribute.String("order_id", c.Param("orderId")), attribute.String("driver_id", driverID))
 	order, err := h.service.Accepted(c.Request.Context(), AcceptedInput{
 		OrderID:         c.Param("orderId"),
 		DriverID:        driverID,

@@ -37,7 +37,7 @@ func (s *Service) Requested(ctx context.Context, input OrderRequestedInput) (Ord
 			result, err = s.doRequested(ctx, input)
 			return err
 		}
-		err = s.tel.WorkerContext(ctx, "orders.requested", work, attribute.String("rider_id", input.RiderID))
+		err = s.tel.WorkerContext(ctx, "orders.requested", work, attribute.String("order_id", input.ID), attribute.String("rider_id", input.RiderID))
 	} else {
 		result, err = s.doRequested(ctx, input)
 	}
@@ -80,14 +80,10 @@ func (s *Service) doRequested(ctx context.Context, input OrderRequestedInput) (O
 		DestinationLatitude:  input.DestinationLatitude,
 		DestinationLongitude: input.DestinationLongitude,
 	})
+	input.Payload = platform.InjectTraceContext(ctx, input.Payload)
 	input.EventType = (OrderRequested{}).MessageType()
 
-	var order Order
-	err := s.tel.Trace(ctx).Span("db.orders.requested", func(ctx context.Context) error {
-		var dbErr error
-		order, dbErr = s.repository.Requested(ctx, input)
-		return dbErr
-	})
+	order, err := s.repository.Requested(ctx, input)
 	if err != nil {
 		status = "error"
 		return OrderOutput{}, err

@@ -3,19 +3,27 @@ package listeners
 import (
 	"context"
 	"testing"
+
+	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type ctxKey struct{}
 
 type fakeStore struct {
+	byID      map[string]Event
+	rowCtx    context.Context
 	pending   []Event
 	queryCtx  context.Context
 	recorded  []string
 	recordCtx context.Context
 }
 
-func (s *fakeStore) QueryRow(context.Context, string) (Event, bool, error) {
-	return Event{}, false, nil
+func (s *fakeStore) QueryRow(ctx context.Context, id string) (Event, bool, error) {
+	s.rowCtx = ctx
+	event, ok := s.byID[id]
+	return event, ok, nil
 }
 
 func (s *fakeStore) QueryPending(ctx context.Context) ([]Event, error) {
@@ -51,7 +59,60 @@ func TestReconcilePropagatesContext(t *testing.T) {
 			t.Fatalf("%s did not receive the listener context", name)
 		}
 	}
+	if sc := trace.SpanContextFromContext(store.queryCtx); !sc.IsValid() || sc.IsSampled() {
+		t.Fatal("the polling query must run under an unsampled span context")
+	}
+	if trace.SpanContextFromContext(pub.ctx).IsValid() {
+		t.Fatal("publishing real events must stay traceable, not suppressed")
+	}
 	if len(store.recorded) != 1 || store.recorded[0] != "e1" {
 		t.Fatalf("recorded = %v, want [e1]", store.recorded)
+	}
+}
+
+func TestPublishContinuesTraceStoredInPayload(t *testing.T) {
+	tp := sdktrace.NewTracerProvider()
+	defer func() { _ = tp.Shutdown(context.Background()) }()
+	reqCtx, reqSpan := tp.Tracer("api").Start(context.Background(), "request")
+	defer reqSpan.End()
+	payload := platform.InjectTraceContext(reqCtx, []byte(`{"order_id":"o1"}`))
+
+	store := &fakeStore{pending: []Event{{ID: "e1", EventType: "order.requested", Payload: payload}}}
+	pub := &fakePublisher{}
+	l := &Listener{store: store, publisher: pub, ctx: context.Background(), memo: newOutboxMemo()}
+
+	l.reconcileOnce()
+
+	want := reqSpan.SpanContext().TraceID()
+	for name, ctx := range map[string]context.Context{"publish": pub.ctx, "audit": store.recordCtx} {
+		got := trace.SpanContextFromContext(ctx)
+		if !got.IsValid() || got.TraceID() != want {
+			t.Fatalf("%s trace id = %s, want the request trace %s (the audit insert must stay in the trace)", name, got.TraceID(), want)
+		}
+	}
+}
+
+func TestNotificationSelectIsNotTraced(t *testing.T) {
+	store := &fakeStore{byID: map[string]Event{"e1": {ID: "e1", EventType: "order.requested"}}}
+	l := &Listener{store: store, publisher: &fakePublisher{}, ctx: context.Background(), memo: newOutboxMemo()}
+
+	l.onNotification("e1")
+	l.workers.Wait()
+
+	if sc := trace.SpanContextFromContext(store.rowCtx); !sc.IsValid() || sc.IsSampled() {
+		t.Fatal("the event SELECT must run under an unsampled span context (no orphan trace per event)")
+	}
+	if len(store.recorded) != 1 || store.recorded[0] != "e1" {
+		t.Fatalf("recorded = %v, want [e1]", store.recorded)
+	}
+}
+
+func TestCorrelationHeaders(t *testing.T) {
+	got := correlationHeaders(Event{ID: "e1", AggregateID: "o1", EventType: "order.requested"})
+	want := map[string]string{"event_id": "e1", "order_id": "o1", "event_type": "order.requested"}
+	for k, v := range want {
+		if got[k] != v {
+			t.Fatalf("header %s = %q, want %q", k, got[k], v)
+		}
 	}
 }

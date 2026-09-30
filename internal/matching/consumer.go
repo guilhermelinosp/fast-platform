@@ -2,7 +2,9 @@ package matching
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
@@ -27,11 +29,12 @@ func NewConsumer(ctx context.Context, ops *telemetry.Telemetry, service MatchSer
 		// Correlaciona o consume do Kafka com um span OTel (kafka.consume),
 		// filho do ctx fornecido pelo consumidor.
 		if ops == nil {
-			return matchEvent(ctx, event, service)
+			return matchEvent(ctx, ops, event, service)
 		}
 		return ops.Trace(ctx).Span("kafka.consume.order_requested", func(ctx context.Context) error {
 			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", event.OrderID))
-			return matchEvent(ctx, event, service)
+			ops.Log(ctx).Info("kafka.consume.order_requested", "order_id", event.OrderID, "event_id", event.EventID)
+			return matchEvent(ctx, ops, event, service)
 		})
 	})
 	consumer, err := kafka.NewConsumer[orders.OrderRequested](ctx, ops)
@@ -44,24 +47,45 @@ func NewConsumer(ctx context.Context, ops *telemetry.Telemetry, service MatchSer
 	return consumer, nil
 }
 
-func matchEvent(ctx context.Context, event orders.OrderRequested, service MatchService) error {
+func matchEvent(ctx context.Context, ops *telemetry.Telemetry, event orders.OrderRequested, service MatchService) error {
 	_, err := service.Match(ctx, event.OrderID)
 	switch {
 	case err == nil:
+		logOutcome(ctx, ops, "ride matched", event)
 		return nil
-	case isErrNoDriverAvailable(err):
-		return nil // Info log handled by service
-	case isErrRideAlreadyMatched(err):
-		return nil // Info log handled by service
+	case hasCode(err, codeNoDriverAvailable):
+		// Acknowledge: retrying the message cannot produce a driver by itself.
+		logOutcome(ctx, ops, "no driver available; event acknowledged", event)
+		return nil
+	case hasCode(err, codeRideAlreadyMatched):
+		logOutcome(ctx, ops, "ride already matched; event acknowledged", event)
+		return nil
 	default:
 		return err
 	}
 }
 
-func isErrNoDriverAvailable(err error) bool {
-	return err != nil && err.Error() == "matching: no driver available"
+func logOutcome(ctx context.Context, ops *telemetry.Telemetry, msg string, event orders.OrderRequested) {
+	if ops != nil {
+		ops.Log(ctx).Info(msg, "order_id", event.OrderID, "event_id", event.EventID)
+	}
 }
 
-func isErrRideAlreadyMatched(err error) bool {
-	return err != nil && err.Error() == "matching: ride already matched"
+const (
+	codeNoDriverAvailable  = "NO_DRIVER_AVAILABLE"
+	codeRideAlreadyMatched = "RIDE_ALREADY_MATCHED"
+)
+
+// hasCode reports whether err carries the platform error code. It prefers the
+// typed error and falls back to the message prefix for errors that were
+// flattened to a string (for example by a cache single-flight).
+func hasCode(err error, code string) bool {
+	if err == nil {
+		return false
+	}
+	var httpErr *platform.HTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.Code == code
+	}
+	return strings.HasPrefix(err.Error(), code+":")
 }

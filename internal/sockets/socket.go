@@ -11,6 +11,8 @@ import (
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"github.com/zishang520/socket.io/servers/socket/v3"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Server is the mobile Socket.IO gateway. Kafka consumers emit durable ride
@@ -57,11 +59,16 @@ func NewServer(ops *telemetry.Telemetry) *Server {
 func (s *Server) Handler() http.Handler { return s.io.ServeHandler(nil) }
 
 // EmitRequested broadcasts an order request to connected driver applications.
-func (s *Server) EmitRequested(event orders.OrderRequested) error {
+func (s *Server) EmitRequested(ctx context.Context, event orders.OrderRequested) error {
 	if s.ops == nil {
 		return s.drivers.Emit(env.String("KAFKA_TOPIC_ORDER_REQUESTED", ""), event)
 	}
-	return s.ops.Trace(context.Background()).Span("socket.emit.order_requested", func(ctx context.Context) error {
+	return s.ops.Trace(ctx).Span("socket.emit.order_requested", func(ctx context.Context) error {
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String("order_id", event.OrderID),
+			attribute.String("event_id", event.EventID),
+			attribute.String("socket.namespace", "drivers"),
+		)
 		s.ops.Log(ctx).Info("socket.emit.order_requested",
 			"order_id", event.OrderID,
 			"rider_id", event.RiderID,
@@ -73,11 +80,17 @@ func (s *Server) EmitRequested(event orders.OrderRequested) error {
 }
 
 // EmitAccepted sends acceptance to the mobile client subscribed to this order.
-func (s *Server) EmitAccepted(event orders.OrderAccepted) error {
+func (s *Server) EmitAccepted(ctx context.Context, event orders.OrderAccepted) error {
 	if s.ops == nil {
 		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(env.String("KAFKA_TOPIC_ORDER_ACCEPTED", ""), event)
 	}
-	return s.ops.Trace(context.Background()).Span("socket.emit.order_accepted", func(ctx context.Context) error {
+	return s.ops.Trace(ctx).Span("socket.emit.order_accepted", func(ctx context.Context) error {
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String("order_id", event.OrderID),
+			attribute.String("event_id", event.EventID),
+			attribute.String("socket.namespace", "riders"),
+			attribute.String("socket.room", orderRoom(event.OrderID)),
+		)
 		s.ops.Log(ctx).Info("socket.emit.order_accepted",
 			"order_id", event.OrderID,
 			"driver_id", event.DriverID,
