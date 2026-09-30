@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
+	"github.com/guilhermelinosp/hellnet-lib-telemetry/instrument"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -224,7 +225,8 @@ func (l *Listener) reconcileLoop() {
 }
 
 func (l *Listener) reconcileOnce() {
-	events, err := l.store.QueryPending(l.ctx)
+	// The poll runs every outboxReloadAt; tracing it would create one trace per tick.
+	events, err := l.store.QueryPending(instrument.WithoutTracing(l.ctx))
 	if err != nil {
 		l.ops.Log(l.ctx).Error("outbox reconciliation failed", "error", err)
 		l.incrementCounter("outbox.reconcile.errors.total")

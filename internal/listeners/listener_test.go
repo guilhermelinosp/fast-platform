@@ -3,6 +3,8 @@ package listeners
 import (
 	"context"
 	"testing"
+
+	"go.opentelemetry.io/otel/trace"
 )
 
 type ctxKey struct{}
@@ -50,6 +52,12 @@ func TestReconcilePropagatesContext(t *testing.T) {
 		if got == nil || got.Value(ctxKey{}) != "caller" {
 			t.Fatalf("%s did not receive the listener context", name)
 		}
+	}
+	if sc := trace.SpanContextFromContext(store.queryCtx); !sc.IsValid() || sc.IsSampled() {
+		t.Fatal("the polling query must run under an unsampled span context")
+	}
+	if trace.SpanContextFromContext(pub.ctx).IsValid() {
+		t.Fatal("publishing real events must stay traceable, not suppressed")
 	}
 	if len(store.recorded) != 1 || store.recorded[0] != "e1" {
 		t.Fatalf("recorded = %v, want [e1]", store.recorded)

@@ -99,7 +99,7 @@ require (
 	github.com/guilhermelinosp/hellnet-lib-cache v1.5.0
 	github.com/guilhermelinosp/hellnet-lib-database v1.3.0
 	github.com/guilhermelinosp/hellnet-lib-kafka v1.10.0
-	github.com/guilhermelinosp/hellnet-lib-telemetry v1.12.0
+	github.com/guilhermelinosp/hellnet-lib-telemetry v1.13.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
 	github.com/zishang520/socket.io/servers/socket/v3 v3.0.6
