@@ -32,6 +32,7 @@ func telemetryMiddleware(tel *telemetry.Telemetry) gin.HandlerFunc {
 		}
 		c.Request = r
 		c.Next()
+		reportStatus(w, c)
 	}))
 
 	return func(c *gin.Context) {
@@ -43,6 +44,15 @@ func telemetryMiddleware(tel *telemetry.Telemetry) gin.HandlerFunc {
 		r = r.WithContext(context.WithValue(r.Context(), telemetryContextKey{}, c))
 		handler.ServeHTTP(c.Writer, r)
 	}
+}
+
+// reportStatus tells the telemetry wrapper the status Gin actually wrote. Gin
+// writes through its own ResponseWriter, not w, so without this the library
+// sees no WriteHeader and records 200 for every request (hiding 4xx/5xx from
+// spans, logs and http_server_errors_total). Gin ignores the repeated
+// WriteHeader because the code equals the one already set.
+func reportStatus(w http.ResponseWriter, c *gin.Context) {
+	w.WriteHeader(c.Writer.Status())
 }
 
 // telemetryFromContext returns the telemetry client set by the router.
