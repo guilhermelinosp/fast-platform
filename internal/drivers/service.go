@@ -44,6 +44,10 @@ func (s *Service) Accepted(ctx context.Context, input AcceptedInput) (OrderOutpu
 			// labels, and order/driver ids would create one series per request.
 			trace.SpanFromContext(ctx).SetAttributes(attribute.String("driver_id", input.DriverID), attribute.String("order_id", input.OrderID))
 			result, err = s.doAccepted(ctx, input)
+			if platform.IsClientError(err) {
+				// Expected rejection: the caller gets the 4xx, the job did not fail.
+				return nil
+			}
 			return err
 		}
 		err = s.tel.WorkerContext(ctx, "drivers.accepted", work)

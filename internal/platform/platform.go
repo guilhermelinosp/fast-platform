@@ -107,6 +107,14 @@ type HTTPError struct {
 	cause   error
 }
 
+// IsClientError reports whether err is an expected 4xx outcome (validation,
+// conflict, not found). Those are answers to the caller, not failures of the
+// service, so they must not be counted as worker job errors.
+func IsClientError(err error) bool {
+	var httpErr *HTTPError
+	return errors.As(err, &httpErr) && httpErr.Status >= 400 && httpErr.Status < 500
+}
+
 // Error implements the error interface.
 func (e *HTTPError) Error() string { return e.Code + ": " + e.Message }
 
