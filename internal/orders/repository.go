@@ -15,6 +15,12 @@ var execute = func(ctx context.Context, db *database.DB, sql string, args ...any
 	return db.ExecuteContext(ctx, sql, args...)
 }
 
+// queryView reads one order view. It is a package variable for the same reason
+// as execute.
+var queryView = func(ctx context.Context, db *database.DB, sql string, args ...any) (OrderView, bool, error) {
+	return database.QueryRowContext[OrderView](ctx, db, sql, args...)
+}
+
 // NewRepository creates a rider database repository.
 func NewRepository(db *database.DB) *Database {
 	return &Database{db: db}
@@ -56,4 +62,22 @@ func (r *Database) Requested(ctx context.Context, input OrderRequestedInput) (Or
 		DestinationLatitude:  input.DestinationLatitude,
 		DestinationLongitude: input.DestinationLongitude,
 	}, nil
+}
+
+// viewSQL reads an order with its current status: the last row of the
+// append-only order_status_history.
+const viewSQL = `
+SELECT o.id::text AS id, o.rider_id::text AS rider_id,
+       o.pickup_latitude, o.pickup_longitude, o.destination_latitude, o.destination_longitude,
+       s.code AS status, o.created_at
+FROM orders o
+JOIN LATERAL (
+  SELECT status_id FROM order_status_history WHERE order_id = o.id ORDER BY sequence DESC LIMIT 1
+) h ON true
+JOIN order_statuses s ON s.id = h.status_id
+WHERE o.id = $1::uuid`
+
+// Get returns the order and its current status.
+func (r *Database) Get(ctx context.Context, id string) (OrderView, bool, error) {
+	return queryView(ctx, r.db, viewSQL, id)
 }

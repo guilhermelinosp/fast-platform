@@ -16,6 +16,7 @@ import (
 type Handler struct {
 	service interface {
 		Requested(context.Context, OrderRequestedInput) (OrderOutput, error)
+		Get(context.Context, string) (OrderView, error)
 	}
 }
 
@@ -31,6 +32,7 @@ type requestInput struct {
 // NewHandler creates a rider HTTP handler.
 func NewHandler(service interface {
 	Requested(context.Context, OrderRequestedInput) (OrderOutput, error)
+	Get(context.Context, string) (OrderView, error)
 }) *Handler {
 	return &Handler{service: service}
 }
@@ -38,6 +40,7 @@ func NewHandler(service interface {
 // Register mounts the rider routes on the gin engine.
 func (h *Handler) Register(r *gin.RouterGroup) {
 	r.POST("/orders", h.request)
+	r.GET("/orders/:orderId", h.get)
 }
 
 // request handles POST /api/v1/orders
@@ -80,4 +83,16 @@ func (h *Handler) request(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, order)
+}
+
+// get handles GET /api/v1/orders/:orderId
+func (h *Handler) get(c *gin.Context) {
+	orderID := c.Param("orderId")
+	trace.SpanFromContext(c.Request.Context()).SetAttributes(attribute.String("order_id", orderID))
+	view, err := h.service.Get(c.Request.Context(), orderID)
+	if err != nil {
+		platform.AbortError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
 }

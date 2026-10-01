@@ -16,19 +16,69 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// Repository is the orders persistence port.
+type Repository interface {
+	Requested(context.Context, OrderRequestedInput) (Order, error)
+	Get(context.Context, string) (OrderView, bool, error)
+}
+
+// viewCache is the context-first cache port used for order reads;
+// *cache.HybridCache satisfies it.
+type viewCache interface {
+	GetOrSetContext(ctx context.Context, key string, out any, factory func(context.Context) (any, error), ttl time.Duration) error
+}
+
+// viewTTL is how long an order read may be stale. The status changes when a
+// driver accepts, so it is kept short.
+const viewTTL = 10 * time.Second
+
 // Service implements rider use cases.
 type Service struct {
 	tel        *telemetry.Telemetry
-	repository interface {
-		Requested(context.Context, OrderRequestedInput) (Order, error)
-	}
+	repository Repository
+	cache      viewCache
 }
 
-// NewService creates the rider service.
-func NewService(tel *telemetry.Telemetry, repository interface {
-	Requested(context.Context, OrderRequestedInput) (Order, error)
-}) *Service {
-	return &Service{tel: tel, repository: repository}
+// NewService creates the rider service. cache may be nil, which reads straight
+// from the repository.
+func NewService(tel *telemetry.Telemetry, repository Repository, cache viewCache) *Service {
+	return &Service{tel: tel, repository: repository, cache: cache}
+}
+
+// Get returns an order and its current status, read through the cache (L1
+// memory, L2 Redis) with stampede protection. A missing order is not cached.
+func (s *Service) Get(ctx context.Context, id string) (OrderView, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return OrderView{}, platform.ValidationError("order_id", "must be a UUID")
+	}
+	load := func(ctx context.Context) (OrderView, error) {
+		view, found, err := s.repository.Get(ctx, id)
+		if err != nil {
+			return OrderView{}, err
+		}
+		if !found {
+			return OrderView{}, platform.NewError(http.StatusNotFound, "ORDER_NOT_FOUND", "order not found")
+		}
+		return view, nil
+	}
+	if s.cache == nil {
+		return load(ctx)
+	}
+	var out OrderView
+	err := s.cache.GetOrSetContext(ctx, "orders:view:"+id, &out, func(ctx context.Context) (any, error) {
+		view, err := load(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return view, nil
+	}, viewTTL)
+	if err != nil {
+		if platform.HasCode(err, "ORDER_NOT_FOUND") {
+			return OrderView{}, platform.NewError(http.StatusNotFound, "ORDER_NOT_FOUND", "order not found")
+		}
+		return OrderView{}, err
+	}
+	return out, nil
 }
 
 // Requested handles the ride request use case.

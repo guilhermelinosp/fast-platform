@@ -2,9 +2,7 @@ package matching
 
 import (
 	"context"
-	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
@@ -76,16 +74,5 @@ const (
 	codeRideAlreadyMatched = "RIDE_ALREADY_MATCHED"
 )
 
-// hasCode reports whether err carries the platform error code. It prefers the
-// typed error and falls back to the message prefix for errors that were
-// flattened to a string (for example by a cache single-flight).
-func hasCode(err error, code string) bool {
-	if err == nil {
-		return false
-	}
-	var httpErr *platform.HTTPError
-	if errors.As(err, &httpErr) {
-		return httpErr.Code == code
-	}
-	return strings.HasPrefix(err.Error(), code+":")
-}
+// hasCode reports whether err carries the platform error code.
+func hasCode(err error, code string) bool { return platform.HasCode(err, code) }

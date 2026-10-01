@@ -115,6 +115,20 @@ func IsClientError(err error) bool {
 	return errors.As(err, &httpErr) && httpErr.Status >= 400 && httpErr.Status < 500
 }
 
+// HasCode reports whether err carries the platform error code. It prefers the
+// typed error and falls back to the message prefix for errors that were
+// flattened to a string (for example by a cache single-flight).
+func HasCode(err error, code string) bool {
+	if err == nil {
+		return false
+	}
+	var httpErr *HTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.Code == code
+	}
+	return strings.HasPrefix(err.Error(), code+":")
+}
+
 // Error implements the error interface.
 func (e *HTTPError) Error() string { return e.Code + ": " + e.Message }
 

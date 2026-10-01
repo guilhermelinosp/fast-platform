@@ -55,6 +55,7 @@ Decisões que moldam o código:
 |---|---|
 | `POST /api/v1/orders` | Cria o pedido. Corpo: `id` (opcional), `rider_id` (ou header `rider_id`; sem ele, gera um UUID), `pickup_latitude`, `pickup_longitude`, `destination_latitude`, `destination_longitude`. Responde `201`. |
 | `POST /api/v1/orders/:orderId/accept` | O motorista aceita. Header `driver_id` (UUID). Responde `201`, ou `409` (`ORDER_NOT_ACCEPTABLE` se o pedido não está no estado "requested" ou não existe; `ORDER_ALREADY_ACCEPTED` se já foi aceito). |
+| `GET /api/v1/orders/:orderId` | Lê o pedido e o status atual (última linha de `order_status_history`). A leitura passa pelo cache (L1 memória e L2 Redis, TTL de 10 s, com proteção contra stampede); `404 ORDER_NOT_FOUND` se não existe (não é guardado no cache) e `400` se o id não é UUID. |
 | `GET /live`, `/ready`, `/health` | Probes de saúde da telemetria. Não geram trace nem log de request. |
 
 Erros seguem um envelope único (`code` e `message`) definido em `internal/platform`.
