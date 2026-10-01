@@ -1,7 +1,9 @@
 package env
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"strconv"
 	"time"
@@ -9,8 +11,16 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Environment loads optional dotenv files. Environment variables already set win.
+// Environment loads optional dotenv files. Environment variables already set win. A missing file
+// is not an error: containers get their configuration from real environment variables.
 func Environment(files ...string) error {
+	if err := load(files...); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
+func load(files ...string) error {
 	if len(files) == 0 {
 		return godotenv.Load()
 	}
