@@ -58,7 +58,12 @@ func (s *Service) Accepted(ctx context.Context, input AcceptedInput) (OrderOutpu
 			}
 			return err
 		}
-		err = s.tel.WorkerContext(ctx, "drivers.accepted", work)
+		// WorkerContext only reports whether the *job* failed; keep the domain error (a 4xx the
+		// work func swallowed so it is not counted as a failure) instead of overwriting it with nil.
+		workErr := s.tel.WorkerContext(ctx, "drivers.accepted", work)
+		if err == nil {
+			err = workErr
+		}
 	} else {
 		result, err = s.doAccepted(ctx, input)
 	}

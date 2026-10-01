@@ -8,6 +8,7 @@ import (
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
+	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 )
 
 const (
@@ -78,4 +79,34 @@ func TestAcceptedWithoutReaderWritesDirectly(t *testing.T) {
 	if err != nil || repo.calls != 1 {
 		t.Fatalf("err = %v, repository calls = %d; want nil, 1", err, repo.calls)
 	}
+}
+
+// With telemetry the call goes through WorkerContext, which only reports job failures: the 409 of a
+// rejected accept must still reach the caller (it used to be overwritten by the wrapper's nil).
+func TestAcceptedWithTelemetryStillReturnsTheConflict(t *testing.T) {
+	t.Setenv("HELLNET_SERVICE", "fast-test")
+	t.Setenv("HELLNET_TELEMETRY_ENDPOINT", "")
+	tel, err := telemetry.New(context.Background())
+	if err != nil {
+		t.Fatalf("telemetry.New: %v", err)
+	}
+	t.Cleanup(func() { _ = tel.Close(context.Background()) })
+
+	conflict := platform.NewError(http.StatusConflict, "ORDER_NOT_ACCEPTABLE", "order is not in the requested state")
+	_, err = NewService(tel, conflictRepository{err: conflict}, nil).Accepted(context.Background(), AcceptedInput{OrderID: acceptOrderID, DriverID: acceptDriverID})
+	var httpErr *platform.HTTPError
+	if !errors.As(err, &httpErr) || httpErr.Status != http.StatusConflict {
+		t.Fatalf("err = %v, want 409: the conflict must not be swallowed by WorkerContext", err)
+	}
+
+	_, err = NewService(tel, &fakeAcceptRepository{}, nil).Accepted(context.Background(), AcceptedInput{OrderID: acceptOrderID, DriverID: acceptDriverID})
+	if err != nil {
+		t.Fatalf("a successful accept with telemetry returned %v", err)
+	}
+}
+
+type conflictRepository struct{ err error }
+
+func (r conflictRepository) Accepted(context.Context, AcceptedInput) (Order, error) {
+	return Order{}, r.err
 }

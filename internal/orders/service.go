@@ -98,7 +98,12 @@ func (s *Service) Requested(ctx context.Context, input OrderRequestedInput) (Ord
 			}
 			return err
 		}
-		err = s.tel.WorkerContext(ctx, "orders.requested", work)
+		// WorkerContext only reports whether the *job* failed; keep the domain error (a 4xx the
+		// work func swallowed so it is not counted as a failure) instead of overwriting it with nil.
+		workErr := s.tel.WorkerContext(ctx, "orders.requested", work)
+		if err == nil {
+			err = workErr
+		}
 	} else {
 		result, err = s.doRequested(ctx, input)
 	}
@@ -147,7 +152,7 @@ func (s *Service) doRequested(ctx context.Context, input OrderRequestedInput) (O
 	order, err := s.repository.Requested(ctx, input)
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "orders_pkey" {
+		if errors.As(err, &pgErr) && isDuplicateOrder(pgErr) {
 			// Same id sent twice: the order already exists, which is the caller's
 			// conflict and not a failure of the service.
 			status = "conflict"
@@ -161,4 +166,19 @@ func (s *Service) doRequested(ctx context.Context, input OrderRequestedInput) (O
 		s.tel.Log(ctx).Info("order requested", "order_id", input.ID, "rider_id", input.RiderID)
 	}
 	return OrderOutput(order), nil
+}
+
+// isDuplicateOrder reports whether a unique violation means "this order id already exists". The
+// order is written by one CTE statement (orders + first status + outbox), so PostgreSQL reports
+// whichever unique constraint it hits first: the orders primary key or the (order_id, sequence)
+// key of the status history.
+func isDuplicateOrder(e *pgconn.PgError) bool {
+	if e.Code != "23505" {
+		return false
+	}
+	switch e.ConstraintName {
+	case "orders_pkey", "order_status_history_order_id_sequence_key":
+		return true
+	}
+	return false
 }
