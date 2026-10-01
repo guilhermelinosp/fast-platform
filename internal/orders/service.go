@@ -3,12 +3,15 @@ package orders
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net/http"
 	"strings"
 	"time"
 	"uuid"
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
+	"github.com/jackc/pgx/v5/pgconn"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -39,6 +42,10 @@ func (s *Service) Requested(ctx context.Context, input OrderRequestedInput) (Ord
 			// labels, and order/rider ids would create one series per request.
 			trace.SpanFromContext(ctx).SetAttributes(attribute.String("order_id", input.ID), attribute.String("rider_id", input.RiderID))
 			result, err = s.doRequested(ctx, input)
+			if platform.IsClientError(err) {
+				// Expected rejection: the caller gets the 4xx, the job did not fail.
+				return nil
+			}
 			return err
 		}
 		err = s.tel.WorkerContext(ctx, "orders.requested", work)
@@ -89,6 +96,13 @@ func (s *Service) doRequested(ctx context.Context, input OrderRequestedInput) (O
 
 	order, err := s.repository.Requested(ctx, input)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "orders_pkey" {
+			// Same id sent twice: the order already exists, which is the caller's
+			// conflict and not a failure of the service.
+			status = "conflict"
+			return OrderOutput{}, platform.NewError(http.StatusConflict, "ORDER_ALREADY_EXISTS", "an order with this id already exists")
+		}
 		status = "error"
 		return OrderOutput{}, err
 	}
