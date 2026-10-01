@@ -56,7 +56,7 @@ func run() error {
 
 	router := platform.NewRouter(cfg, ops)
 	riderService := orders.NewService(ops, orders.NewRepository(db), orderCache)
-	driverService := drivers.NewService(ops, drivers.NewRepository(db))
+	driverService := drivers.NewService(ops, drivers.NewRepository(db), riderService)
 	v1 := router.Group("/api/v1")
 	orders.NewHandler(riderService).Register(v1)
 	drivers.NewHandler(driverService).Register(v1)

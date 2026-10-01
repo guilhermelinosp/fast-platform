@@ -85,13 +85,25 @@ func (h *Handler) request(c *gin.Context) {
 	c.JSON(http.StatusCreated, order)
 }
 
-// get handles GET /api/v1/orders/:orderId
+// get handles GET /api/v1/orders/:orderId. Like the writes, the caller is
+// identified by the rider_id header, and an order is only visible to the rider
+// who requested it: anyone else gets the same 404 as for a missing order, so the
+// response does not reveal that an id exists.
 func (h *Handler) get(c *gin.Context) {
 	orderID := c.Param("orderId")
-	trace.SpanFromContext(c.Request.Context()).SetAttributes(attribute.String("order_id", orderID))
+	riderID := c.GetHeader("rider_id")
+	if _, err := uuid.Parse(riderID); err != nil {
+		platform.AbortError(c, platform.ValidationError("rider_id", "must be a UUID"))
+		return
+	}
+	trace.SpanFromContext(c.Request.Context()).SetAttributes(attribute.String("order_id", orderID), attribute.String("rider_id", riderID))
 	view, err := h.service.Get(c.Request.Context(), orderID)
 	if err != nil {
 		platform.AbortError(c, err)
+		return
+	}
+	if view.RiderID != riderID {
+		platform.AbortError(c, platform.NewError(http.StatusNotFound, "ORDER_NOT_FOUND", "order not found"))
 		return
 	}
 	c.JSON(http.StatusOK, view)
