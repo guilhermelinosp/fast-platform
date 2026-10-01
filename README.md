@@ -84,7 +84,7 @@ cd cmd/sockets && go run . client
 ## Configuração
 
 Cada binário lê o `.env` da própria pasta (`cmd/<binário>/.env`, ignorado pelo
-git); variáveis já definidas no ambiente têm prioridade. Faltando uma variável
+git); copie o `cmd/<binário>/.env.example` e ajuste; variáveis já definidas no ambiente têm prioridade. Faltando uma variável
 obrigatória, o processo falha com um erro claro.
 
 | Variável | Usada por | Descrição |
