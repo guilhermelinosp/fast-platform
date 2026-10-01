@@ -1,0 +1,242 @@
+# fast-platform-modular no cluster kind: api, listeners e sockets
+# (uma imagem, tres entrypoints).
+#
+# Dependencias (ja existem no cluster): Postgres, Redis e Redpanda (ns tools)
+# e o Alloy (ns observability).
+# O Secret do banco NAO fica no git: crie com deploy/bootstrap-secrets.sh.
+# A imagem `fast-platform:dev` e carregada no kind; para GitOps troque por
+# uma imagem de registry.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fast
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fast-config
+  namespace: fast
+data:
+  HELLNET_ENVIRONMENT: Development
+  HELLNET_PORT: "8080"
+  HELLNET_TELEMETRY_ENDPOINT: http://alloy.observability.svc.cluster.local:4318
+  DATABASE_HOST: postgres.tools.svc.cluster.local
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: fast
+  DATABASE_POOL_MAX_SIZE: "10"
+  # Listener interno do Redpanda (o externo anuncia 127.0.0.1:9092 e so
+  # serve o Mac).
+  KAFKA_BROKERS: redpanda.tools.svc.cluster.local:9093
+  KAFKA_SECURITY_PROTOCOL: plaintext
+  KAFKA_TOPIC_ORDER_REQUESTED: br.com.hellnet.fast.order.requested.v1
+  KAFKA_TOPIC_ORDER_ACCEPTED: br.com.hellnet.fast.order.accepted.v1
+  KAFKA_MATCHING_CONSUMER_GROUP: fast-matching
+  SOCKET_DRIVERS_NAMESPACE: /drivers
+  SOCKET_RIDERS_NAMESPACE: /riders
+  HELLNET_CACHE_CONNECTION: redis.tools.svc.cluster.local:6379
+  HELLNET_CACHE_ENABLE_L2: "true"
+  HELLNET_CACHE_DEFAULT_TTL: 5m
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fast-api
+  namespace: fast
+  labels: {app: fast-api}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: fast-api}
+  template:
+    metadata:
+      labels: {app: fast-api}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        # UID numerico: o kubelet so verifica runAsNonRoot com UID numerico.
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: api
+          image: fast-platform:dev
+          imagePullPolicy: IfNotPresent
+          command: ["/api"]
+          envFrom:
+            - configMapRef: {name: fast-config}
+          env:
+            - {name: HELLNET_SERVICE, value: fast-platform}
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: fast-database
+                  key: DATABASE_USERNAME
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fast-database
+                  key: DATABASE_PASSWORD
+          ports:
+            - {name: http, containerPort: 8080}
+          readinessProbe:
+            httpGet: {path: /ready, port: http}
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet: {path: /live, port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          resources:
+            requests: {cpu: 20m, memory: 48Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fast-listeners
+  namespace: fast
+  labels: {app: fast-listeners}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # um unico publicador do outbox por vez
+  selector:
+    matchLabels: {app: fast-listeners}
+  template:
+    metadata:
+      labels: {app: fast-listeners}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        # UID numerico: o kubelet so verifica runAsNonRoot com UID numerico.
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: listeners
+          image: fast-platform:dev
+          imagePullPolicy: IfNotPresent
+          command: ["/listeners"]
+          envFrom:
+            - configMapRef: {name: fast-config}
+          env:
+            - {name: HELLNET_SERVICE, value: fast-listeners}
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: fast-database
+                  key: DATABASE_USERNAME
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fast-database
+                  key: DATABASE_PASSWORD
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          resources:
+            requests: {cpu: 20m, memory: 48Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fast-sockets
+  namespace: fast
+  labels: {app: fast-sockets}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: fast-sockets}
+  template:
+    metadata:
+      labels: {app: fast-sockets}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        # UID numerico: o kubelet so verifica runAsNonRoot com UID numerico.
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: sockets
+          image: fast-platform:dev
+          imagePullPolicy: IfNotPresent
+          command: ["/sockets"]
+          envFrom:
+            - configMapRef: {name: fast-config}
+          env:
+            - {name: HELLNET_SERVICE, value: fast-sockets}
+          ports:
+            - {name: http, containerPort: 8080}
+          readinessProbe:
+            httpGet: {path: /ready, port: http}
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet: {path: /live, port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          resources:
+            requests: {cpu: 20m, memory: 48Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fast-api
+  namespace: fast
+spec:
+  selector: {app: fast-api}
+  ports:
+    - {name: http, port: 80, targetPort: http}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fast-sockets
+  namespace: fast
+spec:
+  selector: {app: fast-sockets}
+  ports:
+    - {name: http, port: 80, targetPort: http}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: fast-api
+  namespace: fast
+spec:
+  hostnames: ["fast.hellnet.com.br"]
+  parentRefs:
+    - {name: kind, namespace: kube-system, sectionName: https}
+  rules:
+    - matches: [{path: {type: PathPrefix, value: /}}]
+      backendRefs: [{name: fast-api, port: 80}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: fast-sockets
+  namespace: fast
+spec:
+  hostnames: ["fast-sockets.hellnet.com.br"]
+  parentRefs:
+    - {name: kind, namespace: kube-system, sectionName: https}
+  rules:
+    - matches: [{path: {type: PathPrefix, value: /}}]
+      backendRefs: [{name: fast-sockets, port: 80}]
