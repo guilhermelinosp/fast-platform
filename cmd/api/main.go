@@ -9,6 +9,7 @@ import (
 	"github.com/guilhermelinosp/fast-platform-modular/internal/drivers"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
+	"github.com/guilhermelinosp/hellnet-lib-cache/cache"
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 )
@@ -47,9 +48,15 @@ func run() error {
 	defer func() { _ = db.Close() }()
 	platform.Warmup(ctx, ops, "database", db.PingContext)
 
+	orderCache, err := cache.New(ctx, ops)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = orderCache.Close() }()
+
 	router := platform.NewRouter(cfg, ops)
-	riderService := orders.NewService(ops, orders.NewRepository(db))
-	driverService := drivers.NewService(ops, drivers.NewRepository(db))
+	riderService := orders.NewService(ops, orders.NewRepository(db), orderCache)
+	driverService := drivers.NewService(ops, drivers.NewRepository(db), riderService)
 	v1 := router.Group("/api/v1")
 	orders.NewHandler(riderService).Register(v1)
 	drivers.NewHandler(driverService).Register(v1)

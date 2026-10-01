@@ -63,3 +63,28 @@ func TestRequestedPropagatesErrors(t *testing.T) {
 		t.Fatalf("err = %v, want %v", err, boom)
 	}
 }
+
+func TestGetReadsTheCurrentStatusFromTheLastHistoryRow(t *testing.T) {
+	var gotSQL string
+	var gotArgs []any
+	prev := queryView
+	queryView = func(_ context.Context, _ *database.DB, sql string, a ...any) (OrderView, bool, error) {
+		gotSQL, gotArgs = sql, a
+		return OrderView{ID: "o1", Status: "accepted"}, true, nil
+	}
+	t.Cleanup(func() { queryView = prev })
+
+	view, found, err := NewRepository(nil).Get(context.Background(), "o1")
+	if err != nil || !found || view.Status != "accepted" {
+		t.Fatalf("Get = %+v, %v, %v", view, found, err)
+	}
+	upper := strings.ToUpper(gotSQL)
+	for _, banned := range []string{"UPDATE ", "DELETE ", "INSERT "} {
+		if strings.Contains(upper, banned) {
+			t.Fatalf("read must be SELECT only, found %q in %s", banned, gotSQL)
+		}
+	}
+	if !strings.Contains(gotSQL, "ORDER BY sequence DESC LIMIT 1") || len(gotArgs) != 1 || gotArgs[0] != "o1" {
+		t.Fatalf("sql/args = %s / %v", gotSQL, gotArgs)
+	}
+}

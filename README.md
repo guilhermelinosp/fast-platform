@@ -54,7 +54,8 @@ Decisões que moldam o código:
 | Método e rota | Descrição |
 |---|---|
 | `POST /api/v1/orders` | Cria o pedido. Corpo: `id` (opcional), `rider_id` (ou header `rider_id`; sem ele, gera um UUID), `pickup_latitude`, `pickup_longitude`, `destination_latitude`, `destination_longitude`. Responde `201`. |
-| `POST /api/v1/orders/:orderId/accept` | O motorista aceita. Header `driver_id` (UUID). Responde `201`, ou `409` (`ORDER_NOT_ACCEPTABLE` se o pedido não está no estado "requested" ou não existe; `ORDER_ALREADY_ACCEPTED` se já foi aceito). |
+| `POST /api/v1/orders/:orderId/accept` | O motorista aceita. Header `driver_id` (UUID). Antes de gravar, consulta o status do pedido pelo mesmo cache e recusa de imediato se ele já não está "requested" (o status só avança); o guard do SQL continua sendo a palavra final. Responde `201`, ou `409` (`ORDER_NOT_ACCEPTABLE` se o pedido não está no estado "requested" ou não existe; `ORDER_ALREADY_ACCEPTED` se já foi aceito). |
+| `GET /api/v1/orders/:orderId` | Lê o pedido e o status atual (última linha de `order_status_history`). A leitura passa pelo cache (L1 memória e L2 Redis, TTL de 10 s, com proteção contra stampede); Exige o header `rider_id` e só mostra o pedido ao passageiro que o fez: pedido inexistente ou de outro passageiro dá `404 ORDER_NOT_FOUND` (o 404 não é guardado no cache); `400` se o id ou o `rider_id` não são UUID. |
 | `GET /live`, `/ready`, `/health` | Probes de saúde da telemetria. Não geram trace nem log de request. |
 
 Erros seguem um envelope único (`code` e `message`) definido em `internal/platform`.

@@ -18,19 +18,27 @@ import (
 
 // Sentinel errors for service-level error handling
 
+// orderReader reads an order and its current status, through the cache in the
+// API; *orders.Service satisfies it.
+type orderReader interface {
+	Get(context.Context, string) (orders.OrderView, error)
+}
+
 // Service implements driver use cases.
 type Service struct {
 	tel        *telemetry.Telemetry
 	repository interface {
 		Accepted(context.Context, AcceptedInput) (Order, error)
 	}
+	orders orderReader
 }
 
-// NewService creates a driver service.
+// NewService creates a driver service. reader may be nil, which skips the
+// early check and relies only on the guard inside the SQL statement.
 func NewService(tel *telemetry.Telemetry, repository interface {
 	Accepted(context.Context, AcceptedInput) (Order, error)
-}) *Service {
-	return &Service{tel: tel, repository: repository}
+}, reader orderReader) *Service {
+	return &Service{tel: tel, repository: repository, orders: reader}
 }
 
 // Accepted handles the order acceptance use case.
@@ -76,6 +84,16 @@ func (s *Service) doAccepted(ctx context.Context, input AcceptedInput) (OrderOut
 	if _, err := uuid.Parse(input.DriverID); err != nil {
 		status = "validation_error"
 		return OrderOutput{}, platform.ValidationError("driver_id", "must be a UUID")
+	}
+	// A status only moves forward: once an order is no longer "requested" it can
+	// never be accepted, so a (possibly cached) answer saying so is safe to act
+	// on. A stale "requested", a missing order or a read failure fall through to
+	// the guard inside the SQL statement, which stays the authority.
+	if s.orders != nil {
+		if view, err := s.orders.Get(ctx, input.OrderID); err == nil && view.Status != "requested" {
+			status = "conflict"
+			return OrderOutput{}, platform.NewError(http.StatusConflict, "ORDER_NOT_ACCEPTABLE", "order is not in the requested state")
+		}
 	}
 	input.Payload, _ = json.Marshal(orders.OrderAccepted{EventID: input.OutboxID, EventVersion: 1, OccurredAt: time.Now().UnixMilli(), OrderID: input.OrderID, DriverID: input.DriverID})
 	input.Payload = platform.InjectTraceContext(ctx, input.Payload)
