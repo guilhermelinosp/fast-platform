@@ -83,8 +83,8 @@ github.com/guilhermelinosp/hellnet-lib-database v1.5.0 h1:/+vs1aCUPN+e5ldBVHBqyT
 github.com/guilhermelinosp/hellnet-lib-database v1.5.0/go.mod h1:FTAv73ukSVR4kT4oY9s1q1FGAGgk+Y6KYZjOHfp6pJI=
 github.com/guilhermelinosp/hellnet-lib-kafka v1.11.0 h1:/LA1rMiI02ddi3h+YSdm/E4LsLJ0OOOG6TuoqI5wlEE=
 github.com/guilhermelinosp/hellnet-lib-kafka v1.11.0/go.mod h1:QlOROliq+drfa0y8b4QaSHKHi33hMjK4uEC679UV72s=
-github.com/guilhermelinosp/hellnet-lib-telemetry v1.13.0 h1:z75W3gWM/u6tEk+JtUBEW7uaqW7Gy+TzgVekUDvw7Io=
-github.com/guilhermelinosp/hellnet-lib-telemetry v1.13.0/go.mod h1:e1QWaS0GxXqw7BdTunN0YruKH8vv878hpi9zIo8flKc=
+github.com/guilhermelinosp/hellnet-lib-telemetry v1.14.0 h1:4R7pDKVj/PewqDmOZPyKZIMTOR6Noy6vbXTdZ2wziXI=
+github.com/guilhermelinosp/hellnet-lib-telemetry v1.14.0/go.mod h1:e1QWaS0GxXqw7BdTunN0YruKH8vv878hpi9zIo8flKc=
 github.com/iskorotkov/avro/v2 v2.34.0 h1:NSUmRFg8Gy51BuALFC6l6n0z1DFz6eAZT6XcjjIJ+FA=
 github.com/iskorotkov/avro/v2 v2.34.0/go.mod h1:euwnxvsKRkeD5nh0T7DLxBmJvRyycOyDBuDnTfDgwT8=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
