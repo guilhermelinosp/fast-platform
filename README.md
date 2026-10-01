@@ -53,8 +53,8 @@ Decisões que moldam o código:
 
 | Método e rota | Descrição |
 |---|---|
-| `POST /api/v1/orders` | Cria o pedido. Corpo: `id` (opcional), `rider_id` (ou header `rider_id`), `pickup_latitude`, `pickup_longitude`, `destination_latitude`, `destination_longitude`. Responde `201`. |
-| `POST /api/v1/orders/:orderId/accept` | O motorista aceita. Header `driver_id` (UUID). Responde `201`, ou `409 ORDER_NOT_ACCEPTABLE` se o pedido não está mais no estado "requested" (já aceito ou inexistente). |
+| `POST /api/v1/orders` | Cria o pedido. Corpo: `id` (opcional), `rider_id` (ou header `rider_id`; sem ele, gera um UUID), `pickup_latitude`, `pickup_longitude`, `destination_latitude`, `destination_longitude`. Responde `201`. |
+| `POST /api/v1/orders/:orderId/accept` | O motorista aceita. Header `driver_id` (UUID). Responde `201`, ou `409` (`ORDER_NOT_ACCEPTABLE` se o pedido não está no estado "requested" ou não existe; `ORDER_ALREADY_ACCEPTED` se já foi aceito). |
 | `GET /live`, `/ready`, `/health` | Probes de saúde da telemetria. Não geram trace nem log de request. |
 
 Erros seguem um envelope único (`code` e `message`) definido em `internal/platform`.
@@ -68,22 +68,6 @@ Erros seguem um envelope único (`code` e `message`) definido em `internal/platf
   para os passageiros).
 - O passageiro entra na sala do próprio pedido com o evento `order.subscribe`
   (sala `order:<orderId>`) e recebe o aceite nela.
-
-### Client de teste
-
-`cmd/sockets/client.go` conecta como motorista e como passageiro, loga cada
-pacote (namespace, evento e ids) e inscreve o passageiro nos pedidos que o
-motorista recebe. Ele é um programa avulso (tem o próprio `main`, por isso não
-entra em `go build ./...`) e lê a configuração do mesmo `cmd/sockets/.env` do
-servidor, sem valores padrão:
-
-```bash
-cd cmd/sockets && go run client.go
-```
-
-Exige `SOCKET_DRIVERS_NAMESPACE`, `SOCKET_RIDERS_NAMESPACE` e
-`KAFKA_TOPIC_ORDER_REQUESTED`; a URL vem de `SOCKET_URL` ou de
-`ws://localhost:$HELLNET_PORT`.
 
 ## Configuração
 
@@ -128,23 +112,23 @@ e exportam traces, métricas e logs por OTLP/HTTP.
 - Identificadores como `order_id` ficam nos spans e nos logs, **nunca** em rótulos
   de métrica (gerariam uma série por pedido).
 
-## Matching (em standby)
+## Matching
 
 O consumer `internal/matching` escolhe um motorista disponível para cada pedido
-(lê a última linha de `driver_availability_history` com status `online`). Ele está
-**desligado** em `cmd/listeners` e **nada grava a disponibilidade dos
-motoristas** ainda, então hoje ele nunca teria um motorista para atribuir.
-Para religá-lo é preciso um jeito de os motoristas ficarem online.
+(lê a última linha de `driver_availability_history` com status `online`) e roda
+dentro do `fast-listeners`. **Nada grava a disponibilidade dos motoristas ainda**,
+então hoje ele nunca encontra um motorista: `NO_DRIVER_AVAILABLE` é reconhecido
+(ack) e não vai para a DLQ. Falta um jeito de os motoristas ficarem online.
 
 ## Estrutura
 
 ```text
 cmd/api         API HTTP
-cmd/listeners   outbox -> Kafka (e o matching, em standby)
-cmd/sockets     Kafka -> Socket.IO (e o client.go de teste)
+cmd/listeners   outbox -> Kafka e matching
+cmd/sockets     Kafka -> Socket.IO
 internal/orders       pedido (HTTP, serviço, repositório)
 internal/drivers      aceite do motorista
-internal/matching     escolha de motorista (standby)
+internal/matching     escolha de motorista
 internal/listeners    outbox, NOTIFY e reconciliação
 internal/sockets      servidor Socket.IO e consumers
 internal/platform     middleware, erros, bootstrap e propagação de trace
