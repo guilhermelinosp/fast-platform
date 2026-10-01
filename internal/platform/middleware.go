@@ -18,6 +18,11 @@ const RequestIDHeader = "X-Request-ID"
 
 type telemetryContextKey struct{}
 
+// probePaths are the platform health endpoints. They are polled constantly by
+// orchestrators and humans, so tracing and logging each probe only adds one
+// trace and one "request completed" line per poll.
+var probePaths = map[string]struct{}{"/live": {}, "/ready": {}, "/health": {}}
+
 // telemetryMiddleware adapts the library's net/http instrumentation to Gin.
 // Keeping this adapter in the application avoids coupling the telemetry
 // library to a specific HTTP framework.
@@ -39,6 +44,10 @@ func telemetryMiddleware(tel *telemetry.Telemetry) gin.HandlerFunc {
 	}))
 
 	return func(c *gin.Context) {
+		if _, probe := probePaths[c.Request.URL.Path]; probe {
+			c.Next()
+			return
+		}
 		r := c.Request
 		if pattern := c.FullPath(); pattern != "" {
 			r = r.Clone(r.Context())

@@ -126,3 +126,37 @@ func TestTelemetryMiddlewareKeepsTheResponseStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestTelemetryMiddlewareSkipsHealthProbes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tel, err := telemetry.NewWithOptions(context.Background(), telemetry.Options{ServiceName: "platform-test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tel.Close(context.Background()) }()
+
+	patterns := map[string]string{}
+	router := gin.New()
+	router.Use(telemetryMiddleware(tel))
+	for _, path := range []string{"/live", "/ready", "/health", "/orders"} {
+		router.GET(path, func(c *gin.Context) {
+			patterns[c.Request.URL.Path] = c.Request.Pattern // set only when the telemetry wrapper ran
+			c.Status(http.StatusOK)
+		})
+	}
+	for _, path := range []string{"/live", "/ready", "/health", "/orders"} {
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, httptest.NewRequest(http.MethodGet, path, nil))
+		if res.Code != http.StatusOK {
+			t.Fatalf("%s status = %d", path, res.Code)
+		}
+	}
+	for _, probe := range []string{"/live", "/ready", "/health"} {
+		if patterns[probe] != "" {
+			t.Errorf("%s went through the telemetry wrapper (pattern %q); probes must not be traced or logged", probe, patterns[probe])
+		}
+	}
+	if patterns["/orders"] != "/orders" {
+		t.Errorf("a normal route must still be instrumented, pattern = %q", patterns["/orders"])
+	}
+}
