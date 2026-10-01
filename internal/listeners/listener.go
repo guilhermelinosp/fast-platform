@@ -16,7 +16,7 @@ import (
 // outboxStore reads pending outbox rows and records publication audit rows.
 type outboxStore interface {
 	QueryRow(ctx context.Context, id string) (Event, bool, error)
-	QueryPending(ctx context.Context) ([]Event, error)
+	QueryPending(ctx context.Context, since time.Time) ([]Event, error)
 	RecordPublished(ctx context.Context, id string) error
 	RecordFailure(ctx context.Context, id string, reason string) error
 }
@@ -29,11 +29,13 @@ func (s Database) QueryRow(ctx context.Context, id string) (Event, bool, error) 
 	return database.QueryRowContext[Event](ctx, s.db, `SELECT id, aggregate_id, event_type, event_version, payload FROM outbox_events WHERE id = $1`, id)
 }
 
-// QueryPending returns events that have no successful publication yet.
-// Tables are append-only (INSERT/SELECT only), so "already published" is
-// derived from outbox_publications instead of mutating outbox_events.
-func (s Database) QueryPending(ctx context.Context) ([]Event, error) {
-	return database.QueryContext[Event](ctx, s.db, `SELECT id, aggregate_id, event_type, event_version, payload FROM outbox_events e WHERE NOT EXISTS (SELECT 1 FROM outbox_publications p WHERE p.event_id = e.id) ORDER BY occurred_at LIMIT 100`)
+// QueryPending returns events since `since` that have no successful publication
+// yet. Tables are append-only (INSERT/SELECT only), so "already published" is
+// derived from outbox_publications instead of mutating outbox_events. The
+// occurred_at bound keeps the anti-join proportional to recent events instead of
+// the whole, ever-growing table; a zero `since` scans everything.
+func (s Database) QueryPending(ctx context.Context, since time.Time) ([]Event, error) {
+	return database.QueryContext[Event](ctx, s.db, `SELECT id, aggregate_id, event_type, event_version, payload FROM outbox_events e WHERE e.occurred_at >= $1 AND NOT EXISTS (SELECT 1 FROM outbox_publications p WHERE p.event_id = e.id) ORDER BY occurred_at LIMIT 100`, since)
 }
 
 // RecordPublished audits a successfully published event. The outbox_events row
@@ -63,6 +65,10 @@ const (
 	outboxChannel  = "outbox_events"
 	memoMaxEvents  = 4096
 	outboxReloadAt = 5 * time.Second
+	// outboxLookback bounds the periodic reconcile to recent events; older ones are
+	// only picked up by the full scan that runs at startup and every outboxFullScanEvery.
+	outboxLookback      = time.Hour
+	outboxFullScanEvery = time.Hour
 )
 
 // outboxMemo is the in-memory delivery state for the insert/select-only outbox.
@@ -132,6 +138,7 @@ type Listener struct {
 	closeOnce    sync.Once
 	memo         *outboxMemo
 	ops          *telemetry.Telemetry
+	lastFullScan time.Time // touched only by the reconcile loop
 }
 
 // NewListener starts a PostgreSQL listener for outbox events.
@@ -257,8 +264,17 @@ func (l *Listener) reconcileLoop() {
 }
 
 func (l *Listener) reconcileOnce() {
+	// Full scan at startup and periodically; the ticks in between only look at
+	// recent events so the cost does not grow with the table.
+	since, full := time.Now().Add(-outboxLookback), false
+	if l.lastFullScan.IsZero() || time.Since(l.lastFullScan) >= outboxFullScanEvery {
+		since, full = time.Time{}, true
+	}
 	// The poll runs every outboxReloadAt; tracing it would create one trace per tick.
-	events, err := l.store.QueryPending(instrument.WithoutTracing(l.ctx))
+	events, err := l.store.QueryPending(instrument.WithoutTracing(l.ctx), since)
+	if err == nil && full {
+		l.lastFullScan = time.Now()
+	}
 	if err != nil {
 		l.logError(l.ctx, "outbox reconciliation failed", "error", err)
 		l.incrementCounter("outbox.reconcile.errors.total")
