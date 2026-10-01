@@ -35,3 +35,37 @@ func TestWarmupRunsWithTimeoutAndNeverFails(t *testing.T) {
 		t.Fatal("warm-up blocked on a failing dependency")
 	}
 }
+
+func TestConsumeRunsTheLoopUntilItReturns(t *testing.T) {
+	ran := false
+	Consume(context.Background(), nil, "test", func(context.Context) error {
+		ran = true
+		return nil
+	})
+	if !ran {
+		t.Fatal("Consume must run the loop")
+	}
+}
+
+func TestConsumeSurvivesAPanicAndAnError(t *testing.T) {
+	Consume(context.Background(), nil, "panics", func(context.Context) error { panic("boom") })
+	Consume(context.Background(), nil, "fails", func(context.Context) error { return errors.New("down") })
+}
+
+func TestConsumeStopsWithTheContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		Consume(ctx, nil, "loop", func(ctx context.Context) error {
+			<-ctx.Done()
+			return ctx.Err()
+		})
+		close(done)
+	}()
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("Consume did not return after the context was canceled")
+	}
+}

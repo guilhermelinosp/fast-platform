@@ -38,11 +38,13 @@ const warmupTimeout = 5 * time.Second
 // first request, so connection, TLS and SASL setup does not land in the first
 // trace. It is best effort: a failure is logged and never stops startup.
 func Warmup(ctx context.Context, ops *telemetry.Telemetry, name string, fn func(context.Context) error) {
-	// Warm-up traffic is not a request: keep it out of the traces.
-	ctx, cancel := context.WithTimeout(instrument.WithoutTracing(ctx), warmupTimeout)
+	// Warm-up traffic is not a request: keep it out of the traces. Only the call
+	// runs untraced; the logs use the caller's context, because the untraced one
+	// carries a made-up trace id that no backend has (a dead link in Grafana).
+	callCtx, cancel := context.WithTimeout(instrument.WithoutTracing(ctx), warmupTimeout)
 	defer cancel()
 	started := time.Now()
-	err := fn(ctx)
+	err := fn(callCtx)
 	if ops == nil {
 		return
 	}
@@ -51,4 +53,36 @@ func Warmup(ctx context.Context, ops *telemetry.Telemetry, name string, fn func(
 		return
 	}
 	ops.Log(ctx).Info("warm-up completed", "dependency", name, "duration_ms", time.Since(started).Milliseconds())
+}
+
+// Consume runs a long-lived consumer loop (for example a Kafka Consumer's
+// RunContext) until ctx is done. A loop is not a job: wrapping it in
+// Telemetry.WorkerContext kept a root span open for the life of the process and
+// recorded a single worker_job_duration sample of that length at shutdown. Each
+// message is already traced by the Kafka process span; Consume only logs the
+// start and the end and keeps a panic from taking the process down silently.
+func Consume(ctx context.Context, ops *telemetry.Telemetry, name string, run func(context.Context) error) {
+	log := func(level, msg string, args ...any) {
+		if ops == nil {
+			return
+		}
+		l := ops.Log(ctx)
+		args = append([]any{"consumer", name}, args...)
+		if level == "error" {
+			l.Error(msg, args...)
+			return
+		}
+		l.Info(msg, args...)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			log("error", "consumer panicked", "panic", fmt.Sprint(r))
+		}
+	}()
+	log("info", "consumer started")
+	if err := run(ctx); err != nil && ctx.Err() == nil {
+		log("error", "consumer stopped with an error", "error", err.Error())
+		return
+	}
+	log("info", "consumer stopped")
 }

@@ -12,9 +12,7 @@ import (
 	"github.com/guilhermelinosp/hellnet-lib-cache/cache"
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
 	"github.com/guilhermelinosp/hellnet-lib-kafka/kafka"
-	"github.com/guilhermelinosp/hellnet-lib-telemetry/instrument"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 func main() {
@@ -80,13 +78,7 @@ func run() error {
 		}
 		defer func() { _ = matchingConsumer.Close() }()
 
-		// The consumer loop lives as long as the process: tracing it as one job would keep a
-		// root span open for minutes. Each message is traced by the Kafka process span.
-		go func() {
-			_ = ops.WorkerContext(instrument.WithoutTracing(ctx), "matching.consume.order_requested", func(ctx context.Context) error {
-				return matchingConsumer.RunContext(ctx)
-			}, attribute.String("consumer", "matching"))
-		}()
+		go platform.Consume(ctx, ops, "matching", matchingConsumer.RunContext)
 	} else {
 		ops.Log(ctx).Info("matching consumer on standby", "enable_with", "MATCHING_ENABLED=true")
 	}

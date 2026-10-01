@@ -8,9 +8,7 @@ import (
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/sockets"
-	"github.com/guilhermelinosp/hellnet-lib-telemetry/instrument"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 func main() {
@@ -50,18 +48,8 @@ func run() error {
 	}
 	defer func() { _ = orderAcceptedConsumer.Close() }()
 
-	// The consumer loop lives as long as the process: tracing it as one job would keep a
-	// root span open for minutes. Each message is traced by the Kafka process span.
-	go func() {
-		_ = ops.WorkerContext(instrument.WithoutTracing(ctx), "socket.consume.order_requested", func(ctx context.Context) error {
-			return orderRequestConsumer.RunContext(ctx)
-		}, attribute.String("consumer", "order-requested"))
-	}()
-	go func() {
-		_ = ops.WorkerContext(instrument.WithoutTracing(ctx), "socket.consume.order_accepted", func(ctx context.Context) error {
-			return orderAcceptedConsumer.RunContext(ctx)
-		}, attribute.String("consumer", "order-accepted"))
-	}()
+	go platform.Consume(ctx, ops, "order-requested", orderRequestConsumer.RunContext)
+	go platform.Consume(ctx, ops, "order-accepted", orderAcceptedConsumer.RunContext)
 
 	mux := http.NewServeMux()
 	mux.Handle("/socket.io/", socket.Handler())
