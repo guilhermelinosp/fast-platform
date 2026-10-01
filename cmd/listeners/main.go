@@ -4,9 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/listeners"
-	"github.com/guilhermelinosp/fast-platform-modular/internal/matching"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-cache/cache"
@@ -44,6 +42,12 @@ func run() error {
 	defer func() { _ = db.Close() }()
 	platform.Warmup(ctx, ops, "database", db.PingContext)
 
+	c, err := cache.New(ctx, ops)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = c.Close() }()
+
 	orderRequestedProducer, err := kafka.NewProducer[orders.OrderRequested](ctx, ops)
 	if err != nil {
 		return err
@@ -64,24 +68,13 @@ func run() error {
 	}
 	defer listener.Close()
 
-	// Matching is on standby: it only runs with MATCHING_ENABLED=true.
-	if env.Bool("MATCHING_ENABLED", false) {
-		c, err := cache.New(ctx, ops)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = c.Close() }()
+	//matchingConsumer, err := matching.NewConsumer(ctx, ops, matching.NewService(matching.NewRepository(db), c))
+	//if err != nil {
+	//	return err
+	//}
+	//defer func() { _ = matchingConsumer.Close() }()
 
-		matchingConsumer, err := matching.NewConsumer(ctx, ops, matching.NewService(matching.NewRepository(db), c))
-		if err != nil {
-			return err
-		}
-		defer func() { _ = matchingConsumer.Close() }()
-
-		go platform.Consume(ctx, ops, "matching", matchingConsumer.RunContext)
-	} else {
-		ops.Log(ctx).Info("matching consumer on standby", "enable_with", "MATCHING_ENABLED=true")
-	}
+	//go platform.Consume(ctx, ops, "matching", matchingConsumer.RunContext)
 
 	ops.Log(ctx).Info("fast-listeners started")
 	<-ctx.Done()

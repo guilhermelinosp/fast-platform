@@ -112,23 +112,23 @@ e exportam traces, métricas e logs por OTLP/HTTP.
 - Identificadores como `order_id` ficam nos spans e nos logs, **nunca** em rótulos
   de métrica (gerariam uma série por pedido).
 
-## Matching
+## Matching (em standby)
 
 O consumer `internal/matching` escolhe um motorista disponível para cada pedido
-(lê a última linha de `driver_availability_history` com status `online`) e roda
-dentro do `fast-listeners`. **Nada grava a disponibilidade dos motoristas ainda**,
-então hoje ele nunca encontra um motorista: `NO_DRIVER_AVAILABLE` é reconhecido
-(ack) e não vai para a DLQ. Falta um jeito de os motoristas ficarem online.
+(lê a última linha de `driver_availability_history` com status `online`). Ele está
+**comentado** em `cmd/listeners/main.go`, e **nada grava a disponibilidade dos
+motoristas** ainda, então ele não teria um motorista para atribuir. Para
+religá-lo, descomente o bloco e dê aos motoristas um jeito de ficarem online.
 
 ## Estrutura
 
 ```text
 cmd/api         API HTTP
-cmd/listeners   outbox -> Kafka e matching
+cmd/listeners   outbox -> Kafka (matching em standby)
 cmd/sockets     Kafka -> Socket.IO
 internal/orders       pedido (HTTP, serviço, repositório)
 internal/drivers      aceite do motorista
-internal/matching     escolha de motorista
+internal/matching     escolha de motorista (standby)
 internal/listeners    outbox, NOTIFY e reconciliação
 internal/sockets      servidor Socket.IO e consumers
 internal/platform     middleware, erros, bootstrap e propagação de trace
