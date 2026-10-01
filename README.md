@@ -69,6 +69,18 @@ Erros seguem um envelope único (`code` e `message`) definido em `internal/platf
 - O passageiro entra na sala do próprio pedido com o evento `order.subscribe`
   (sala `order:<orderId>`) e recebe o aceite nela.
 
+### Client de teste
+
+`cmd/sockets/client.go` é um client de teste do próprio binário: conecta como
+motorista e como passageiro, loga cada pacote (namespace, evento e ids) e inscreve
+o passageiro nos pedidos que o motorista recebe. Lê o mesmo `cmd/sockets/.env` do
+servidor (`SOCKET_URL`, padrão `ws://localhost:8080`, `SOCKET_DRIVERS_NAMESPACE`,
+`SOCKET_RIDERS_NAMESPACE` e `KAFKA_TOPIC_ORDER_REQUESTED`):
+
+```bash
+cd cmd/sockets && go run . client
+```
+
 ## Configuração
 
 Cada binário lê o `.env` da própria pasta (`cmd/<binário>/.env`, ignorado pelo
