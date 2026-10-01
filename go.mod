@@ -96,7 +96,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/guilhermelinosp/hellnet-lib-cache v1.5.0
-	github.com/guilhermelinosp/hellnet-lib-database v1.4.0
+	github.com/guilhermelinosp/hellnet-lib-database v1.5.0
 	github.com/guilhermelinosp/hellnet-lib-kafka v1.11.0
 	github.com/guilhermelinosp/hellnet-lib-telemetry v1.13.0
 	github.com/jackc/pgx/v5 v5.11.0

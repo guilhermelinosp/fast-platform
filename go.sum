@@ -79,8 +79,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 h1:Bd7KaOxzULLxtZ/K5s1aLbWhR0+
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0/go.mod h1:nN7ts3dFXKtCZWc//yfkpcQNKJABg16/uDVAZpLDalo=
 github.com/guilhermelinosp/hellnet-lib-cache v1.5.0 h1:pzka5ua/rAjEB7IlTxm2DR6dMSGuiRDSa7xULTTfDkw=
 github.com/guilhermelinosp/hellnet-lib-cache v1.5.0/go.mod h1:HCRx9qvwXnrWRX1O/4xciqPF+Eu4EB196KEK1buxJM8=
-github.com/guilhermelinosp/hellnet-lib-database v1.4.0 h1:rNiWZNJ8pqdEzOXQzXAjSpH1LteZ1ZANbD4EXgwZSZs=
-github.com/guilhermelinosp/hellnet-lib-database v1.4.0/go.mod h1:FTAv73ukSVR4kT4oY9s1q1FGAGgk+Y6KYZjOHfp6pJI=
+github.com/guilhermelinosp/hellnet-lib-database v1.5.0 h1:/+vs1aCUPN+e5ldBVHBqyTLC+JBh+zNQVY+e/N+1hLw=
+github.com/guilhermelinosp/hellnet-lib-database v1.5.0/go.mod h1:FTAv73ukSVR4kT4oY9s1q1FGAGgk+Y6KYZjOHfp6pJI=
 github.com/guilhermelinosp/hellnet-lib-kafka v1.11.0 h1:/LA1rMiI02ddi3h+YSdm/E4LsLJ0OOOG6TuoqI5wlEE=
 github.com/guilhermelinosp/hellnet-lib-kafka v1.11.0/go.mod h1:QlOROliq+drfa0y8b4QaSHKHi33hMjK4uEC679UV72s=
 github.com/guilhermelinosp/hellnet-lib-telemetry v1.13.0 h1:z75W3gWM/u6tEk+JtUBEW7uaqW7Gy+TzgVekUDvw7Io=
