@@ -38,24 +38,63 @@ func TestTelemetryMiddlewarePreservesRoutePattern(t *testing.T) {
 	}
 }
 
-type statusSpy struct {
+type writerSpy struct {
 	http.ResponseWriter
 	codes []int
+	bytes int
 }
 
-func (s *statusSpy) WriteHeader(code int) { s.codes = append(s.codes, code) }
+func (s *writerSpy) WriteHeader(code int) {
+	s.codes = append(s.codes, code)
+	s.ResponseWriter.WriteHeader(code)
+}
 
-func TestReportStatusForwardsTheStatusGinWrote(t *testing.T) {
+func (s *writerSpy) Write(b []byte) (int, error) {
+	s.bytes += len(b)
+	return s.ResponseWriter.Write(b)
+}
+
+func newObserved(t *testing.T) (*gin.Context, *httptest.ResponseRecorder, *writerSpy) {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
-	for _, want := range []int{http.StatusCreated, http.StatusBadRequest, http.StatusInternalServerError} {
-		rec := httptest.NewRecorder()
-		c, _ := gin.CreateTestContext(rec)
-		c.Status(want)
-		spy := &statusSpy{ResponseWriter: rec}
-		reportStatus(spy, c)
-		if len(spy.codes) != 1 || spy.codes[0] != want {
-			t.Fatalf("reported %v, want [%d]", spy.codes, want)
-		}
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	spy := &writerSpy{ResponseWriter: c.Writer}
+	c.Writer = &observedWriter{ResponseWriter: c.Writer, w: spy}
+	return c, rec, spy
+}
+
+func TestObservedWriterReportsStatusAndBodySize(t *testing.T) {
+	c, rec, spy := newObserved(t)
+	c.JSON(http.StatusCreated, gin.H{"ok": true})
+	if len(spy.codes) != 1 || spy.codes[0] != http.StatusCreated {
+		t.Fatalf("reported status codes = %v, want [201]", spy.codes)
+	}
+	if spy.bytes == 0 || spy.bytes != rec.Body.Len() {
+		t.Fatalf("reported %d bytes, response body has %d", spy.bytes, rec.Body.Len())
+	}
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", rec.Code)
+	}
+}
+
+func TestObservedWriterReportsHandlersThatNeverWrite(t *testing.T) {
+	c, rec, spy := newObserved(t)
+	c.Status(http.StatusNoContent)
+	c.Writer.WriteHeaderNow()
+	if len(spy.codes) != 1 || spy.codes[0] != http.StatusNoContent || spy.bytes != 0 {
+		t.Fatalf("codes=%v bytes=%d, want [204] and 0", spy.codes, spy.bytes)
+	}
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204", rec.Code)
+	}
+}
+
+func TestObservedWriterCountsStringBodies(t *testing.T) {
+	c, rec, spy := newObserved(t)
+	c.String(http.StatusAccepted, "hello %s", "world")
+	if spy.bytes != len("hello world") || rec.Body.String() != "hello world" || rec.Code != http.StatusAccepted {
+		t.Fatalf("bytes=%d body=%q status=%d", spy.bytes, rec.Body.String(), rec.Code)
 	}
 }
 
@@ -81,6 +120,9 @@ func TestTelemetryMiddlewareKeepsTheResponseStatus(t *testing.T) {
 		router.ServeHTTP(res, httptest.NewRequest(method, path, nil))
 		if res.Code != want {
 			t.Fatalf("%s status = %d, want %d", path, res.Code, want)
+		}
+		if path == "/orders" && res.Body.String() != `{"ok":true}` {
+			t.Fatalf("body through the telemetry middleware = %q, want the handler's JSON", res.Body.String())
 		}
 	}
 }

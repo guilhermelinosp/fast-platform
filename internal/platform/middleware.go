@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -31,8 +32,10 @@ func telemetryMiddleware(tel *telemetry.Telemetry) gin.HandlerFunc {
 			return
 		}
 		c.Request = r
+		ow := &observedWriter{ResponseWriter: c.Writer, w: w}
+		c.Writer = ow
 		c.Next()
-		reportStatus(w, c)
+		ow.WriteHeaderNow() // handlers that never write (204, AbortWithStatus) still report their status
 	}))
 
 	return func(c *gin.Context) {
@@ -46,13 +49,31 @@ func telemetryMiddleware(tel *telemetry.Telemetry) gin.HandlerFunc {
 	}
 }
 
-// reportStatus tells the telemetry wrapper the status Gin actually wrote. Gin
-// writes through its own ResponseWriter, not w, so without this the library
-// sees no WriteHeader and records 200 for every request (hiding 4xx/5xx from
-// spans, logs and http_server_errors_total). Gin ignores the repeated
-// WriteHeader because the code equals the one already set.
-func reportStatus(w http.ResponseWriter, c *gin.Context) {
-	w.WriteHeader(c.Writer.Status())
+// observedWriter makes Gin write through the telemetry wrapper. Gin writes to
+// its own ResponseWriter, not to the one handed to the net/http handler, so the
+// library's wrapper saw no WriteHeader (status always 200) and no Write
+// (http_response_size_bytes always 0). Headers and status flow through w; Gin's
+// own writer still performs the real write and keeps its bookkeeping.
+type observedWriter struct {
+	gin.ResponseWriter
+	w http.ResponseWriter
+}
+
+func (o *observedWriter) WriteHeaderNow() {
+	if !o.Written() {
+		o.w.WriteHeader(o.Status())
+	}
+	o.ResponseWriter.WriteHeaderNow()
+}
+
+func (o *observedWriter) Write(data []byte) (int, error) {
+	o.WriteHeaderNow()
+	return o.w.Write(data)
+}
+
+func (o *observedWriter) WriteString(s string) (int, error) {
+	o.WriteHeaderNow()
+	return io.WriteString(o.w, s)
 }
 
 // telemetryFromContext returns the telemetry client set by the router.
