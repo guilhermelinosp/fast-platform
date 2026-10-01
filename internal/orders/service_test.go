@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
+	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -29,12 +30,15 @@ func requestedInput() OrderRequestedInput {
 }
 
 func TestRequestedDuplicateIDIsConflict(t *testing.T) {
-	dup := &pgconn.PgError{Code: "23505", ConstraintName: "orders_pkey"}
-	_, err := NewService(nil, failingRepository{err: dup}, nil).Requested(context.Background(), requestedInput())
+	// PostgreSQL may report either constraint of the CTE first; both mean "order already exists".
+	for _, constraint := range []string{"orders_pkey", "order_status_history_order_id_sequence_key"} {
+		dup := &pgconn.PgError{Code: "23505", ConstraintName: constraint}
+		_, err := NewService(nil, failingRepository{err: dup}, nil).Requested(context.Background(), requestedInput())
 
-	var httpErr *platform.HTTPError
-	if !errors.As(err, &httpErr) || httpErr.Status != http.StatusConflict || httpErr.Code != "ORDER_ALREADY_EXISTS" {
-		t.Fatalf("err = %v, want 409 ORDER_ALREADY_EXISTS", err)
+		var httpErr *platform.HTTPError
+		if !errors.As(err, &httpErr) || httpErr.Status != http.StatusConflict || httpErr.Code != "ORDER_ALREADY_EXISTS" {
+			t.Fatalf("%s: err = %v, want 409 ORDER_ALREADY_EXISTS", constraint, err)
+		}
 	}
 }
 
@@ -128,5 +132,37 @@ func TestGetWithoutCacheReadsTheRepository(t *testing.T) {
 	}
 	if repo.reads != 2 {
 		t.Fatalf("repository reads = %d, want 2", repo.reads)
+	}
+}
+
+// With telemetry the call goes through WorkerContext, which only reports job failures: a 4xx must
+// still reach the caller (it used to be overwritten by the wrapper's nil, answering 201).
+func newTestTelemetry(t *testing.T) *telemetry.Telemetry {
+	t.Helper()
+	t.Setenv("HELLNET_SERVICE", "fast-test")
+	t.Setenv("HELLNET_TELEMETRY_ENDPOINT", "")
+	tel, err := telemetry.New(context.Background())
+	if err != nil {
+		t.Fatalf("telemetry.New: %v", err)
+	}
+	t.Cleanup(func() { _ = tel.Close(context.Background()) })
+	return tel
+}
+
+func TestRequestedWithTelemetryStillReturnsTheDomainError(t *testing.T) {
+	tel := newTestTelemetry(t)
+
+	dup := &pgconn.PgError{Code: "23505", ConstraintName: "order_status_history_order_id_sequence_key"}
+	_, err := NewService(tel, failingRepository{err: dup}, nil).Requested(context.Background(), requestedInput())
+	var httpErr *platform.HTTPError
+	if !errors.As(err, &httpErr) || httpErr.Status != http.StatusConflict {
+		t.Fatalf("duplicate id with telemetry: err = %v, want 409", err)
+	}
+
+	in := requestedInput()
+	in.RiderID = ""
+	_, err = NewService(tel, failingRepository{}, nil).Requested(context.Background(), in)
+	if !platform.IsClientError(err) {
+		t.Fatalf("missing rider_id with telemetry: err = %v, want a 4xx validation error (not nil)", err)
 	}
 }
