@@ -3,13 +3,14 @@
 #   API -> Postgres (outbox) -> listeners -> Redpanda -> sockets
 # e o cache (Redis) na leitura de pedidos.
 #   deploy/smoke-test.sh
-# Variaveis: API_HOST (padrao fast.hellnet.com.br), GATEWAY_IP (padrao 127.0.0.1; o gateway do kind
-# responde na porta 443 do Mac), NS (padrao fast), WAIT (padrao 20, segundos de espera por evento).
+# Variaveis: API_HOST (padrao fast.hellnet.com.br), GATEWAY_IP (padrao 192.168.1.2: o Gateway hellnet do
+# cluster Talos; de fora de casa alcance pelo Cloudflare WARP), NS (padrao fast), WAIT (padrao 20,
+# segundos de espera por evento).
 set -uo pipefail
 
 NS="${NS:-fast}"
 API_HOST="${API_HOST:-fast.hellnet.com.br}"
-GATEWAY_IP="${GATEWAY_IP:-127.0.0.1}"
+GATEWAY_IP="${GATEWAY_IP:-192.168.1.2}"
 WAIT="${WAIT:-20}"
 TOPIC_REQ="br.com.hellnet.fast.order.requested.v1"
 TOPIC_ACC="br.com.hellnet.fast.order.accepted.v1"
