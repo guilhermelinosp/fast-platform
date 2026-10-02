@@ -16,6 +16,11 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 7
+      exclude:
+        # as libs do projeto sobem sem espera
+        - "github.com/guilhermelinosp/*"
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore(deps)"
