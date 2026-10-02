@@ -8,7 +8,7 @@ import (
 	"uuid"
 
 	"github.com/guilhermelinosp/fast-platform/internal/orders"
-	"github.com/guilhermelinosp/fast-platform/internal/platform"
+	"github.com/guilhermelinosp/fast-platform/platform"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"

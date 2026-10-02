@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/guilhermelinosp/fast-platform/internal/platform"
+	"github.com/guilhermelinosp/fast-platform/platform"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )

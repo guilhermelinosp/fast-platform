@@ -6,7 +6,7 @@ import (
 
 	"github.com/guilhermelinosp/fast-platform/internal/listeners"
 	"github.com/guilhermelinosp/fast-platform/internal/orders"
-	"github.com/guilhermelinosp/fast-platform/internal/platform"
+	"github.com/guilhermelinosp/fast-platform/platform"
 	"github.com/guilhermelinosp/hellnet-lib-cache/cache"
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
 	"github.com/guilhermelinosp/hellnet-lib-kafka/kafka"

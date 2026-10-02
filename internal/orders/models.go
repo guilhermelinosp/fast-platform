@@ -3,7 +3,7 @@ package orders
 import (
 	"time"
 
-	"github.com/guilhermelinosp/fast-platform/internal/env"
+	"github.com/guilhermelinosp/fast-platform/env"
 )
 
 // Order is the persisted order representation returned by the service.
