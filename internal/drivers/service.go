@@ -7,8 +7,9 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/guilhermelinosp/fast-platform/events"
 	"github.com/guilhermelinosp/fast-platform/internal/orders"
-	"github.com/guilhermelinosp/fast-platform/internal/platform"
+	"github.com/guilhermelinosp/fast-platform/platform"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -100,9 +101,9 @@ func (s *Service) doAccepted(ctx context.Context, input AcceptedInput) (OrderOut
 			return OrderOutput{}, platform.NewError(http.StatusConflict, "ORDER_NOT_ACCEPTABLE", "order is not in the requested state")
 		}
 	}
-	input.Payload, _ = json.Marshal(orders.OrderAccepted{EventID: input.OutboxID, EventVersion: 1, OccurredAt: time.Now().UnixMilli(), OrderID: input.OrderID, DriverID: input.DriverID})
+	input.Payload, _ = json.Marshal(events.OrderAccepted{EventID: input.OutboxID, EventVersion: 1, OccurredAt: time.Now().UnixMilli(), OrderID: input.OrderID, DriverID: input.DriverID})
 	input.Payload = platform.InjectTraceContext(ctx, input.Payload)
-	input.EventType = (orders.OrderAccepted{}).MessageType()
+	input.EventType = (events.OrderAccepted{}).MessageType()
 	order, err := s.repository.Accepted(ctx, input)
 	if err != nil {
 		status = "error"

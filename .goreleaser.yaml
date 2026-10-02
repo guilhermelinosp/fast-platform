@@ -8,9 +8,9 @@ before:
     - go mod verify
 
 builds:
-  - id: api
-    main: ./cmd/api
-    binary: api
+  - id: platform
+    main: ./cmd/platform
+    binary: platform
     env:
       - CGO_ENABLED=0
     # Custom flags passed to `go build`. -trimpath belongs here (build flags),

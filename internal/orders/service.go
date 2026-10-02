@@ -9,7 +9,8 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/guilhermelinosp/fast-platform/internal/platform"
+	"github.com/guilhermelinosp/fast-platform/events"
+	"github.com/guilhermelinosp/fast-platform/platform"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"github.com/jackc/pgx/v5/pgconn"
 	"go.opentelemetry.io/otel/attribute"
@@ -135,7 +136,7 @@ func (s *Service) doRequested(ctx context.Context, input OrderRequestedInput) (O
 		input.OutboxID = uuid.New().String()
 	}
 
-	input.Payload, _ = json.Marshal(OrderRequested{
+	input.Payload, _ = json.Marshal(events.OrderRequested{
 		EventID:              input.OutboxID,
 		EventVersion:         1,
 		OccurredAt:           time.Now().UnixMilli(),
@@ -147,7 +148,7 @@ func (s *Service) doRequested(ctx context.Context, input OrderRequestedInput) (O
 		DestinationLongitude: input.DestinationLongitude,
 	})
 	input.Payload = platform.InjectTraceContext(ctx, input.Payload)
-	input.EventType = (OrderRequested{}).MessageType()
+	input.EventType = (events.OrderRequested{}).MessageType()
 
 	order, err := s.repository.Requested(ctx, input)
 	if err != nil {

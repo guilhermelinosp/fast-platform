@@ -8,7 +8,7 @@
 //   BASE_URL=http://127.0.0.1:18081 SOCKETS_URL=http://127.0.0.1:18082 k6 run k6/e2e.js
 //
 // Requer k6 (módulo k6/websockets) e as apps no ar:
-//   cmd/api (8080), fast-listeners e fast-sockets (18082 local), cada um no seu repositório.
+//   cmd/platform (8080), fast-listeners e fast-sockets (18082 local), cada um no seu repositório.
 //
 // Nota: o build k6 devel não propaga check()/log() executados DENTRO dos
 // handlers de WebSocket (open/message). A conectividade WS é validada pelas

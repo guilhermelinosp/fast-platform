@@ -22,12 +22,12 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOFLAGS=-trimpath \
     go build -ldflags="-w -s -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" \
-    -o /bin/api ./cmd/api
+    -o /bin/platform ./cmd/platform
 
 # ── Runtime stage ────────────────────────────────────────────────────────────
 FROM gcr.io/distroless/static:nonroot
 
-COPY --from=builder /bin/api /api
+COPY --from=builder /bin/platform /platform
 
 # Platform endpoints: /live /ready /health on the same port.
 EXPOSE 8080
@@ -35,4 +35,4 @@ EXPOSE 8080
 # Numeric UID/GID (distroless "nonroot"): Kubernetes cannot verify runAsNonRoot for a named user.
 USER 65532:65532
 
-ENTRYPOINT ["/api"]
+ENTRYPOINT ["/platform"]

@@ -7,7 +7,7 @@ import (
 	"uuid"
 
 	"github.com/gin-gonic/gin"
-	"github.com/guilhermelinosp/fast-platform/internal/platform"
+	"github.com/guilhermelinosp/fast-platform/platform"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
