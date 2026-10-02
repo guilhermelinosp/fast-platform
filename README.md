@@ -90,7 +90,7 @@ Decisões que moldam o código:
 | `GET /api/v1/orders/:orderId` | Lê o pedido e o status atual (última linha de `order_status_history`). A leitura passa pelo cache (L1 memória e L2 Redis, TTL de 10 s, com proteção contra stampede); Exige o header `rider_id` e só mostra o pedido ao passageiro que o fez: pedido inexistente ou de outro passageiro dá `404 ORDER_NOT_FOUND` (o 404 não é guardado no cache); `400` se o id ou o `rider_id` não são UUID. |
 | `GET /live`, `/ready`, `/health` | Probes de saúde da telemetria. Não geram trace nem log de request. |
 
-Erros seguem um envelope único (`code` e `message`) definido em `internal/platform`.
+Erros seguem um envelope único (`code` e `message`) definido no pacote `platform`.
 
 ## Socket.IO (`fast-sockets`)
 
@@ -149,14 +149,18 @@ religá-lo, descomente o bloco e dê aos motoristas um jeito de ficarem online.
 cmd/api         API HTTP
 cmd/listeners   outbox -> Kafka (matching em standby)
 cmd/sockets     Kafka -> Socket.IO
+platform/       middleware, erros, bootstrap e propagação de trace   (público)
+env/            leitura de variáveis de ambiente                    (público)
+events/         eventos de pedido publicados no Kafka               (público)
 internal/orders       pedido (HTTP, serviço, repositório)
 internal/drivers      aceite do motorista
 internal/matching     escolha de motorista (standby)
 internal/listeners    outbox, NOTIFY e reconciliação
 internal/sockets      servidor Socket.IO e consumers
-internal/platform     middleware, erros, bootstrap e propagação de trace
-internal/env          leitura de variáveis de ambiente
 ```
+
+Os pacotes públicos `platform`, `env` e `events` são a biblioteca compartilhada: o `fast-listeners` e o `fast-sockets`
+importam `github.com/guilhermelinosp/fast-platform/{platform,env,events}`.
 
 ## Desenvolvimento
 
