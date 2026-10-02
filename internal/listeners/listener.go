@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
+	"github.com/guilhermelinosp/fast-platform/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/instrument"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"

@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/guilhermelinosp/fast-platform-modular/internal/env"
+	"github.com/guilhermelinosp/fast-platform/internal/env"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/instrument"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 )
