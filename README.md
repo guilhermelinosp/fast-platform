@@ -9,6 +9,38 @@ corrida, um motorista aceita, e cada passo chega em tempo real aos apps via
 [![pr-check](https://github.com/guilhermelinosp/fast-platform/actions/workflows/pr-check.yml/badge.svg)](https://github.com/guilhermelinosp/fast-platform/actions/workflows/pr-check.yml)
 [![CodeQL](https://github.com/guilhermelinosp/fast-platform/actions/workflows/codeql.yml/badge.svg)](https://github.com/guilhermelinosp/fast-platform/actions/workflows/codeql.yml)
 
+## Início rápido
+
+Cada binário lê o `.env` da própria pasta (`cmd/<binário>/.env`, ignorado pelo git): copie o `cmd/<binário>/.env.example` e ajuste (veja [Configuração](#configuração)). São necessários PostgreSQL, Redis e Kafka. Em cada pasta, com o `.env` ao lado:
+
+```bash
+cd cmd/api && go run -race main.go        # fast-platform (API HTTP)
+cd cmd/listeners && go run -race main.go  # fast-listeners (outbox -> Kafka)
+cd cmd/sockets && go run -race main.go    # fast-sockets (Kafka -> Socket.IO)
+```
+
+## Configuração
+
+Cada binário lê o `.env` da própria pasta (`cmd/<binário>/.env`, ignorado pelo
+git); copie o `cmd/<binário>/.env.example` e ajuste; variáveis já definidas no ambiente têm prioridade. Faltando uma variável
+obrigatória, o processo falha com um erro claro.
+
+| Variável | Usada por | Descrição |
+|---|---|---|
+| `HELLNET_SERVICE`, `HELLNET_ENVIRONMENT` | todos | Nome do serviço e ambiente (`Development` liga o modo debug do Gin) |
+| `HELLNET_PORT` | api, sockets | Porta HTTP (padrão `8080`) |
+| `HELLNET_TELEMETRY_ENDPOINT` | todos | Endpoint OTLP/HTTP (Alloy) |
+| `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_POOL_MAX_SIZE` | api, listeners | Conexão PostgreSQL |
+| `KAFKA_BROKERS`, `KAFKA_SECURITY_PROTOCOL` | todos | Conexão Kafka |
+| `KAFKA_TOPIC_ORDER_REQUESTED`, `KAFKA_TOPIC_ORDER_ACCEPTED` | todos | Tópicos dos eventos |
+| `KAFKA_MATCHING_CONSUMER_GROUP` | listeners | Grupo do consumer de matching |
+| `SOCKET_DRIVERS_NAMESPACE`, `SOCKET_RIDERS_NAMESPACE` | api, sockets | Namespaces Socket.IO |
+| `HELLNET_CACHE_CONNECTION`, `HELLNET_CACHE_ENABLE_L2`, `HELLNET_CACHE_DEFAULT_TTL` | api, listeners | Cache L1 (memória) e L2 (Redis), por exemplo `localhost:6379` |
+| `BODY_LIMIT`, `READ_TIMEOUT`, `WRITE_TIMEOUT`, `IDLE_TIMEOUT`, `READ_HEADER_TIMEOUT`, `SHUTDOWN_TIMEOUT`, `CORS_ALLOWED_ORIGINS`, `TRUSTED_PROXIES` | api | Limites e timeouts HTTP |
+
+> O cache lê as variáveis com o prefixo `HELLNET_CACHE_`; nomes sem o prefixo
+> (`CACHE_CONNECTION`) são ignorados e o L2 fica desligado.
+
 ## Arquitetura
 
 | Binário | Pasta | Papel |
@@ -82,28 +114,6 @@ servidor (`SOCKET_URL`, padrão `ws://localhost:8080`, `SOCKET_DRIVERS_NAMESPACE
 cd cmd/sockets && go run . client
 ```
 
-## Configuração
-
-Cada binário lê o `.env` da própria pasta (`cmd/<binário>/.env`, ignorado pelo
-git); copie o `cmd/<binário>/.env.example` e ajuste; variáveis já definidas no ambiente têm prioridade. Faltando uma variável
-obrigatória, o processo falha com um erro claro.
-
-| Variável | Usada por | Descrição |
-|---|---|---|
-| `HELLNET_SERVICE`, `HELLNET_ENVIRONMENT` | todos | Nome do serviço e ambiente (`Development` liga o modo debug do Gin) |
-| `HELLNET_PORT` | api, sockets | Porta HTTP (padrão `8080`) |
-| `HELLNET_TELEMETRY_ENDPOINT` | todos | Endpoint OTLP/HTTP (Alloy) |
-| `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_POOL_MAX_SIZE` | api, listeners | Conexão PostgreSQL |
-| `KAFKA_BROKERS`, `KAFKA_SECURITY_PROTOCOL` | todos | Conexão Kafka |
-| `KAFKA_TOPIC_ORDER_REQUESTED`, `KAFKA_TOPIC_ORDER_ACCEPTED` | todos | Tópicos dos eventos |
-| `KAFKA_MATCHING_CONSUMER_GROUP` | listeners | Grupo do consumer de matching |
-| `SOCKET_DRIVERS_NAMESPACE`, `SOCKET_RIDERS_NAMESPACE` | api, sockets | Namespaces Socket.IO |
-| `HELLNET_CACHE_CONNECTION`, `HELLNET_CACHE_ENABLE_L2`, `HELLNET_CACHE_DEFAULT_TTL` | api, listeners | Cache L1 (memória) e L2 (Redis), por exemplo `localhost:6379` |
-| `BODY_LIMIT`, `READ_TIMEOUT`, `WRITE_TIMEOUT`, `IDLE_TIMEOUT`, `READ_HEADER_TIMEOUT`, `SHUTDOWN_TIMEOUT`, `CORS_ALLOWED_ORIGINS`, `TRUSTED_PROXIES` | api | Limites e timeouts HTTP |
-
-> O cache lê as variáveis com o prefixo `HELLNET_CACHE_`; nomes sem o prefixo
-> (`CACHE_CONNECTION`) são ignorados e o L2 fica desligado.
-
 ## Observabilidade
 
 Os três serviços usam [hellnet-lib-telemetry](https://github.com/guilhermelinosp/hellnet-lib-telemetry)
@@ -151,23 +161,26 @@ internal/env          leitura de variáveis de ambiente
 ## Desenvolvimento
 
 ```bash
-# em cada pasta cmd/<binário>, com o .env ao lado:
-go run -race main.go
-
 go test -race ./...
+go vet ./...
 golangci-lint run ./...
 ```
 
-Os hooks do [Lefthook](.lefthook.yml) rodam `gofmt`, `vet`, testes (com e sem
-`-race`), build, `go mod tidy`, lint, `govulncheck` e o scan de segredos antes de
-cada commit. Commits seguem [Conventional Commits](https://www.conventionalcommits.org/).
+Os hooks do [Lefthook](.lefthook.yml) rodam `gofmt`, `vet`, testes (com e sem `-race`), build, `go mod tidy`, lint, `govulncheck` e o scan de segredos; instale-os uma vez com `lefthook install`. Commits seguem [Conventional Commits](https://www.conventionalcommits.org/).
 
-## CI
+## CI/CD
 
-Workflows em `.github/workflows`: `pipeline` (build, teste e release), `pr-check`
-(lint, qualidade, segredos e Conventional Commits), `codeql`, `security` e
-atualizações automáticas de dependências.
+| Workflow | Gatilho | O que faz |
+|---|---|---|
+| `pr-check` | pull request | shellcheck, estratégia de merge e Conventional Commits (`merge-check`), Gitleaks, labels e o gate de qualidade Go (integridade do módulo, vet, testes com race e cobertura, lint, build, dependency review). O `pr-gate` reúne tudo e é o check obrigatório |
+| `pipeline` | push na `main` (ignora `.github/**`) ou manual | guarda de semver (bloqueia major automático), tag imutável + GitHub Release, imagem de container |
+| `codeql` | diário ou manual | análise estática (CodeQL) |
+| `security` | diário ou manual | scans de Gitleaks e Trivy |
+| `auto-pr` | push em `feat/**` ou `fix/**` | abre o pull request automaticamente |
+| `dependabot-actions-auto-merge` | pull requests do Dependabot | faz auto-merge das atualizações de GitHub Actions |
+
+Os workflows chamam workflows reutilizáveis de [templates](https://github.com/guilhermelinosp/templates), fixados por SHA de commit. O release precisa do secret `HELLNET_ACTIONS_PRIVATE_KEY` e da variável `HELLNET_ACTIONS_CLIENT_ID`.
 
 ## Contribuindo e licença
 
-Veja [CONTRIBUTING.md](CONTRIBUTING.md) e [SECURITY.md](SECURITY.md).
+Veja [CONTRIBUTING.md](CONTRIBUTING.md) e [SECURITY.md](SECURITY.md). Licença [Apache 2.0](LICENSE).
