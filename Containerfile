@@ -18,24 +18,18 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY . .
-# One image, three entrypoints (api, listeners, sockets): the Deployment picks the command.
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    for app in api listeners sockets; do \
-      CGO_ENABLED=0 GOFLAGS=-trimpath \
-      go build -ldflags="-w -s -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" \
-      -o /bin/$app ./cmd/$app || exit 1; \
-    done
+    CGO_ENABLED=0 GOFLAGS=-trimpath \
+    go build -ldflags="-w -s -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" \
+    -o /bin/api ./cmd/api
 
 # ── Runtime stage ────────────────────────────────────────────────────────────
 FROM gcr.io/distroless/static:nonroot
 
 COPY --from=builder /bin/api /api
-COPY --from=builder /bin/listeners /listeners
-COPY --from=builder /bin/sockets /sockets
 
-# Platform endpoints (api and sockets): /live /ready /health on the same port; the default
-# entrypoint is the API, override the command for /listeners or /sockets.
+# Platform endpoints: /live /ready /health on the same port.
 EXPOSE 8080
 
 # Numeric UID/GID (distroless "nonroot"): Kubernetes cannot verify runAsNonRoot for a named user.
