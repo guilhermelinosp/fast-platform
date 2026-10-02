@@ -1,4 +1,4 @@
-# fast-platform-modular no cluster kind: api, listeners e sockets
+# fast-platform no cluster kind: api, listeners e sockets
 # (uma imagem, tres entrypoints).
 #
 # Dependencias (ja existem no cluster): Postgres, Redis e Redpanda (ns tools)
