@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/guilhermelinosp/fast-platform/internal/platform"
+	"github.com/guilhermelinosp/fast-platform/platform"
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
 )
 

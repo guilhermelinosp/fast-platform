@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/guilhermelinosp/fast-platform/internal/env"
+	"github.com/guilhermelinosp/fast-platform/env"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 )
 
