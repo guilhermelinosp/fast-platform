@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -204,6 +205,14 @@ func NewRouter(cfg *Config, ops *telemetry.Telemetry) *gin.Engine {
 		gin.SetMode(gin.ReleaseMode)
 	} else {
 		gin.SetMode(gin.DebugMode)
+		// Gin's debug output is plain text on stdout, which breaks the JSON log
+		// stream: drop it and report the routes through the structured logger.
+		gin.DefaultWriter = io.Discard
+		gin.DebugPrintRouteFunc = func(method, path, handler string, _ int) {
+			if ops != nil {
+				ops.Log(context.Background()).Debug("route registered", "method", method, "path", path, "handler", handler)
+			}
+		}
 	}
 	limit := cfg.BodyLimit
 	if limit <= 0 {
