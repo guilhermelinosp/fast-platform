@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/guilhermelinosp/fast-platform/events"
 	"github.com/guilhermelinosp/fast-platform/internal/listeners"
-	"github.com/guilhermelinosp/fast-platform/internal/orders"
 	"github.com/guilhermelinosp/fast-platform/platform"
 	"github.com/guilhermelinosp/hellnet-lib-cache/cache"
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
@@ -48,13 +48,13 @@ func run() error {
 	}
 	defer func() { _ = c.Close() }()
 
-	orderRequestedProducer, err := kafka.NewProducer[orders.OrderRequested](ctx, ops)
+	orderRequestedProducer, err := kafka.NewProducer[events.OrderRequested](ctx, ops)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = orderRequestedProducer.Shutdown(context.WithoutCancel(ctx)) }()
 	platform.Warmup(ctx, ops, "kafka.order_requested", orderRequestedProducer.Ping)
-	orderAcceptedProducer, err := kafka.NewProducer[orders.OrderAccepted](ctx, ops)
+	orderAcceptedProducer, err := kafka.NewProducer[events.OrderAccepted](ctx, ops)
 	if err != nil {
 		return err
 	}

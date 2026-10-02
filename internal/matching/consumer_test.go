@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/guilhermelinosp/fast-platform/internal/orders"
+	"github.com/guilhermelinosp/fast-platform/events"
 	"github.com/guilhermelinosp/fast-platform/platform"
 )
 
@@ -45,15 +45,15 @@ func TestMatchEventAcknowledgesDomainOutcomes(t *testing.T) {
 		"already":   already,
 	}
 	for name, err := range cases {
-		if got := matchEvent(context.Background(), nil, orders.OrderRequested{OrderID: "o"}, errService{err}); got != nil {
+		if got := matchEvent(context.Background(), nil, events.OrderRequested{OrderID: "o"}, errService{err}); got != nil {
 			t.Errorf("%s: matchEvent = %v, want nil (acknowledge, no Kafka retry)", name, got)
 		}
 	}
 	boom := errors.New("database down")
-	if got := matchEvent(context.Background(), nil, orders.OrderRequested{OrderID: "o"}, errService{boom}); !errors.Is(got, boom) {
+	if got := matchEvent(context.Background(), nil, events.OrderRequested{OrderID: "o"}, errService{boom}); !errors.Is(got, boom) {
 		t.Fatalf("unexpected errors must be returned for retry, got %v", got)
 	}
-	if got := matchEvent(context.Background(), nil, orders.OrderRequested{OrderID: "o"}, noopService{}); got != nil {
+	if got := matchEvent(context.Background(), nil, events.OrderRequested{OrderID: "o"}, noopService{}); got != nil {
 		t.Fatalf("success must return nil, got %v", got)
 	}
 }

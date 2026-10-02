@@ -4,19 +4,19 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/guilhermelinosp/fast-platform/internal/orders"
+	"github.com/guilhermelinosp/fast-platform/events"
 	"github.com/guilhermelinosp/fast-platform/platform"
 	"github.com/guilhermelinosp/hellnet-lib-kafka/kafka"
 )
 
 // Producer handles Kafka publishing of outbox events.
 type Producer struct {
-	requested *kafka.Producer[orders.OrderRequested]
-	accepted  *kafka.Producer[orders.OrderAccepted]
+	requested *kafka.Producer[events.OrderRequested]
+	accepted  *kafka.Producer[events.OrderAccepted]
 }
 
 // NewProducer creates a producer that publishes outbox events to Kafka.
-func NewProducer(requested *kafka.Producer[orders.OrderRequested], accepted *kafka.Producer[orders.OrderAccepted]) *Producer {
+func NewProducer(requested *kafka.Producer[events.OrderRequested], accepted *kafka.Producer[events.OrderAccepted]) *Producer {
 	return &Producer{
 		requested: requested,
 		accepted:  accepted,
@@ -27,14 +27,14 @@ func NewProducer(requested *kafka.Producer[orders.OrderRequested], accepted *kaf
 func (p *Producer) Publish(ctx context.Context, event Event) error {
 	ctx = kafka.ContextWithHeaders(ctx, correlationHeaders(event))
 	switch event.EventType {
-	case (orders.OrderRequested{}).MessageType():
-		var message orders.OrderRequested
+	case (events.OrderRequested{}).MessageType():
+		var message events.OrderRequested
 		if err := json.Unmarshal(event.Payload, &message); err != nil {
 			return platform.WrapError(platform.NewError(500, "OUTBOX_DECODE", "decode order requested event"), err)
 		}
 		return p.requested.PublishContext(ctx, message)
-	case (orders.OrderAccepted{}).MessageType():
-		var message orders.OrderAccepted
+	case (events.OrderAccepted{}).MessageType():
+		var message events.OrderAccepted
 		if err := json.Unmarshal(event.Payload, &message); err != nil {
 			return platform.WrapError(platform.NewError(500, "OUTBOX_DECODE", "decode order accepted event"), err)
 		}

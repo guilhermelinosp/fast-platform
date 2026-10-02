@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/guilhermelinosp/fast-platform/env"
-	"github.com/guilhermelinosp/fast-platform/internal/orders"
+	"github.com/guilhermelinosp/fast-platform/events"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"github.com/zishang520/socket.io/servers/socket/v3"
 	"go.opentelemetry.io/otel/attribute"
@@ -59,7 +59,7 @@ func NewServer(ops *telemetry.Telemetry) *Server {
 func (s *Server) Handler() http.Handler { return s.io.ServeHandler(nil) }
 
 // EmitRequested broadcasts an order request to connected driver applications.
-func (s *Server) EmitRequested(ctx context.Context, event orders.OrderRequested) error {
+func (s *Server) EmitRequested(ctx context.Context, event events.OrderRequested) error {
 	if s.ops == nil {
 		return s.drivers.Emit(env.String("KAFKA_TOPIC_ORDER_REQUESTED", ""), event)
 	}
@@ -80,7 +80,7 @@ func (s *Server) EmitRequested(ctx context.Context, event orders.OrderRequested)
 }
 
 // EmitAccepted sends acceptance to the mobile client subscribed to this order.
-func (s *Server) EmitAccepted(ctx context.Context, event orders.OrderAccepted) error {
+func (s *Server) EmitAccepted(ctx context.Context, event events.OrderAccepted) error {
 	if s.ops == nil {
 		return s.riders.To(socket.Room(orderRoom(event.OrderID))).Emit(env.String("KAFKA_TOPIC_ORDER_ACCEPTED", ""), event)
 	}

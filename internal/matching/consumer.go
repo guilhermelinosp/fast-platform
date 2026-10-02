@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/guilhermelinosp/fast-platform/env"
-	"github.com/guilhermelinosp/fast-platform/internal/orders"
+	"github.com/guilhermelinosp/fast-platform/events"
 	"github.com/guilhermelinosp/fast-platform/platform"
 	"github.com/guilhermelinosp/hellnet-lib-kafka/kafka"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
@@ -19,11 +19,11 @@ type MatchService interface {
 }
 
 // NewConsumer builds a Kafka consumer that matches incoming ride requests.
-func NewConsumer(ctx context.Context, ops *telemetry.Telemetry, service MatchService) (*kafka.Consumer[orders.OrderRequested], error) {
+func NewConsumer(ctx context.Context, ops *telemetry.Telemetry, service MatchService) (*kafka.Consumer[events.OrderRequested], error) {
 	if service == nil {
 		return nil, platform.NewError(http.StatusInternalServerError, "INTERNAL", "matching: service is nil")
 	}
-	handler := kafka.HandlerFunc[orders.OrderRequested](func(ctx context.Context, event orders.OrderRequested, _ kafka.Ctx) error {
+	handler := kafka.HandlerFunc[events.OrderRequested](func(ctx context.Context, event events.OrderRequested, _ kafka.Ctx) error {
 		// Correlaciona o consume do Kafka com um span OTel (kafka.consume),
 		// filho do ctx fornecido pelo consumidor.
 		if ops == nil {
@@ -35,7 +35,7 @@ func NewConsumer(ctx context.Context, ops *telemetry.Telemetry, service MatchSer
 			return matchEvent(ctx, ops, event, service)
 		})
 	})
-	consumer, err := kafka.NewConsumer[orders.OrderRequested](ctx, ops)
+	consumer, err := kafka.NewConsumer[events.OrderRequested](ctx, ops)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func NewConsumer(ctx context.Context, ops *telemetry.Telemetry, service MatchSer
 	return consumer, nil
 }
 
-func matchEvent(ctx context.Context, ops *telemetry.Telemetry, event orders.OrderRequested, service MatchService) error {
+func matchEvent(ctx context.Context, ops *telemetry.Telemetry, event events.OrderRequested, service MatchService) error {
 	_, err := service.Match(ctx, event.OrderID)
 	switch {
 	case err == nil:
@@ -63,7 +63,7 @@ func matchEvent(ctx context.Context, ops *telemetry.Telemetry, event orders.Orde
 	}
 }
 
-func logOutcome(ctx context.Context, ops *telemetry.Telemetry, msg string, event orders.OrderRequested) {
+func logOutcome(ctx context.Context, ops *telemetry.Telemetry, msg string, event events.OrderRequested) {
 	if ops != nil {
 		ops.Log(ctx).Info(msg, "order_id", event.OrderID, "event_id", event.EventID)
 	}
