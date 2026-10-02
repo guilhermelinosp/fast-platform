@@ -11,10 +11,10 @@ corrida, um motorista aceita, e cada passo chega em tempo real aos apps via
 
 ## Início rápido
 
-A API lê o `.env` da própria pasta (`cmd/api/.env`, ignorado pelo git): copie o `cmd/api/.env.example` e ajuste (veja [Configuração](#configuração)). São necessários PostgreSQL, Redis e Kafka.
+O serviço lê o `.env` da própria pasta (`cmd/platform/.env`, ignorado pelo git): copie o `cmd/platform/.env.example` e ajuste (veja [Configuração](#configuração)). São necessários PostgreSQL, Redis e Kafka.
 
 ```bash
-cd cmd/api && go run -race main.go   # fast-platform (API HTTP)
+cd cmd/platform && go run -race main.go   # fast-platform (API HTTP)
 ```
 
 O [fast-listeners](https://github.com/guilhermelinosp/fast-listeners) (outbox -> Kafka) e o [fast-sockets](https://github.com/guilhermelinosp/fast-sockets) (Kafka -> Socket.IO) têm cada um o seu repositório e o seu README.
@@ -44,7 +44,7 @@ obrigatória, o processo falha com um erro claro.
 
 | Serviço | Repositório | Papel |
 |---|---|---|
-| **fast-platform** | este (`cmd/api`) | API HTTP (Gin): recebe o pedido e o aceite e grava tudo em uma escrita atômica |
+| **fast-platform** | este (`cmd/platform`) | API HTTP (Gin): recebe o pedido e o aceite e grava tudo em uma escrita atômica |
 | **fast-listeners** | [fast-listeners](https://github.com/guilhermelinosp/fast-listeners) | Lê o outbox do PostgreSQL e publica no Kafka (inclui o consumer de matching, em standby) |
 | **fast-sockets** | [fast-sockets](https://github.com/guilhermelinosp/fast-sockets) | Consome o Kafka e entrega os eventos por Socket.IO |
 
@@ -119,7 +119,7 @@ e exportam traces, métricas e logs por OTLP/HTTP.
 ## Estrutura
 
 ```text
-cmd/api               API HTTP
+cmd/platform               API HTTP
 platform/             runtime: middleware, erros, bootstrap e propagação de trace   (público)
 env/                  leitura de variáveis de ambiente                              (público)
 events/               eventos de pedido publicados no Kafka                         (público)
