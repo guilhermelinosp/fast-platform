@@ -22,8 +22,8 @@ func main() {
 }
 
 // run starts the HTTP API process. Background consumers and the outbox
-// publisher are owned by cmd/listeners and the Socket.IO gateway by
-// cmd/sockets.
+// publisher are owned by the fast-listeners repository and the Socket.IO gateway by
+// the fast-sockets repository.
 func run() error {
 	ctx, stop, err := platform.Context()
 	if err != nil {

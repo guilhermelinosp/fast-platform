@@ -1,7 +1,7 @@
 # fast-platform
 
-Plataforma de corridas (ride-hailing) em Go, dividida em três binários que se
-comunicam por **PostgreSQL (outbox)** e **Kafka**. Um passageiro pede uma
+Plataforma de corridas (ride-hailing) em Go, dividida em três serviços, cada um em seu
+repositório, que se comunicam por **PostgreSQL (outbox)** e **Kafka**. Um passageiro pede uma
 corrida, um motorista aceita, e cada passo chega em tempo real aos apps via
 **Socket.IO**.
 
@@ -11,13 +11,13 @@ corrida, um motorista aceita, e cada passo chega em tempo real aos apps via
 
 ## Início rápido
 
-Cada binário lê o `.env` da própria pasta (`cmd/<binário>/.env`, ignorado pelo git): copie o `cmd/<binário>/.env.example` e ajuste (veja [Configuração](#configuração)). São necessários PostgreSQL, Redis e Kafka. Em cada pasta, com o `.env` ao lado:
+A API lê o `.env` da própria pasta (`cmd/api/.env`, ignorado pelo git): copie o `cmd/api/.env.example` e ajuste (veja [Configuração](#configuração)). São necessários PostgreSQL, Redis e Kafka.
 
 ```bash
-cd cmd/api && go run -race main.go        # fast-platform (API HTTP)
-cd cmd/listeners && go run -race main.go  # fast-listeners (outbox -> Kafka)
-cd cmd/sockets && go run -race main.go    # fast-sockets (Kafka -> Socket.IO)
+cd cmd/api && go run -race main.go   # fast-platform (API HTTP)
 ```
+
+O [fast-listeners](https://github.com/guilhermelinosp/fast-listeners) (outbox -> Kafka) e o [fast-sockets](https://github.com/guilhermelinosp/fast-sockets) (Kafka -> Socket.IO) têm cada um o seu repositório e o seu README.
 
 ## Configuração
 
@@ -27,15 +27,14 @@ obrigatória, o processo falha com um erro claro.
 
 | Variável | Usada por | Descrição |
 |---|---|---|
-| `HELLNET_SERVICE`, `HELLNET_ENVIRONMENT` | todos | Nome do serviço e ambiente (`Development` liga o modo debug do Gin) |
-| `HELLNET_PORT` | api, sockets | Porta HTTP (padrão `8080`) |
-| `HELLNET_TELEMETRY_ENDPOINT` | todos | Endpoint OTLP/HTTP (Alloy) |
-| `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_POOL_MAX_SIZE` | api, listeners | Conexão PostgreSQL |
-| `KAFKA_BROKERS`, `KAFKA_SECURITY_PROTOCOL` | todos | Conexão Kafka |
-| `KAFKA_TOPIC_ORDER_REQUESTED`, `KAFKA_TOPIC_ORDER_ACCEPTED` | todos | Tópicos dos eventos |
-| `KAFKA_MATCHING_CONSUMER_GROUP` | listeners | Grupo do consumer de matching |
-| `SOCKET_DRIVERS_NAMESPACE`, `SOCKET_RIDERS_NAMESPACE` | api, sockets | Namespaces Socket.IO |
-| `HELLNET_CACHE_CONNECTION`, `HELLNET_CACHE_ENABLE_L2`, `HELLNET_CACHE_DEFAULT_TTL` | api, listeners | Cache L1 (memória) e L2 (Redis), por exemplo `localhost:6379` |
+| `HELLNET_SERVICE`, `HELLNET_ENVIRONMENT` | api | Nome do serviço e ambiente (`Development` liga o modo debug do Gin) |
+| `HELLNET_PORT` | api | Porta HTTP (padrão `8080`) |
+| `HELLNET_TELEMETRY_ENDPOINT` | api | Endpoint OTLP/HTTP (Alloy) |
+| `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_POOL_MAX_SIZE` | api | Conexão PostgreSQL |
+| `KAFKA_BROKERS`, `KAFKA_SECURITY_PROTOCOL` | api | Conexão Kafka |
+| `KAFKA_TOPIC_ORDER_REQUESTED`, `KAFKA_TOPIC_ORDER_ACCEPTED` | api | Tópicos dos eventos |
+| `SOCKET_DRIVERS_NAMESPACE`, `SOCKET_RIDERS_NAMESPACE` | api | Namespaces Socket.IO |
+| `HELLNET_CACHE_CONNECTION`, `HELLNET_CACHE_ENABLE_L2`, `HELLNET_CACHE_DEFAULT_TTL` | api | Cache L1 (memória) e L2 (Redis), por exemplo `localhost:6379` |
 | `BODY_LIMIT`, `READ_TIMEOUT`, `WRITE_TIMEOUT`, `IDLE_TIMEOUT`, `READ_HEADER_TIMEOUT`, `SHUTDOWN_TIMEOUT`, `CORS_ALLOWED_ORIGINS`, `TRUSTED_PROXIES` | api | Limites e timeouts HTTP |
 
 > O cache lê as variáveis com o prefixo `HELLNET_CACHE_`; nomes sem o prefixo
@@ -43,11 +42,11 @@ obrigatória, o processo falha com um erro claro.
 
 ## Arquitetura
 
-| Binário | Pasta | Papel |
+| Serviço | Repositório | Papel |
 |---|---|---|
-| **fast-platform** | `cmd/api` | API HTTP (Gin): recebe o pedido e o aceite e grava tudo em uma escrita atômica |
-| **fast-listeners** | `cmd/listeners` | Lê o outbox do PostgreSQL e publica no Kafka |
-| **fast-sockets** | `cmd/sockets` | Consome o Kafka e entrega os eventos por Socket.IO |
+| **fast-platform** | este (`cmd/api`) | API HTTP (Gin): recebe o pedido e o aceite e grava tudo em uma escrita atômica |
+| **fast-listeners** | [fast-listeners](https://github.com/guilhermelinosp/fast-listeners) | Lê o outbox do PostgreSQL e publica no Kafka (inclui o consumer de matching, em standby) |
+| **fast-sockets** | [fast-sockets](https://github.com/guilhermelinosp/fast-sockets) | Consome o Kafka e entrega os eventos por Socket.IO |
 
 ```text
 App do passageiro ──POST /api/v1/orders──► fast-platform
@@ -92,27 +91,9 @@ Decisões que moldam o código:
 
 Erros seguem um envelope único (`code` e `message`) definido no pacote `platform`.
 
-## Socket.IO (`fast-sockets`)
+## Socket.IO e listeners
 
-- Dois namespaces, configurados por `SOCKET_DRIVERS_NAMESPACE` (motoristas) e
-  `SOCKET_RIDERS_NAMESPACE` (passageiros).
-- O servidor emite cada evento com o **nome do tópico** Kafka
-  (`KAFKA_TOPIC_ORDER_REQUESTED` para os motoristas, `KAFKA_TOPIC_ORDER_ACCEPTED`
-  para os passageiros).
-- O passageiro entra na sala do próprio pedido com o evento `order.subscribe`
-  (sala `order:<orderId>`) e recebe o aceite nela.
-
-### Client de teste
-
-`cmd/sockets/client.go` é um client de teste do próprio binário: conecta como
-motorista e como passageiro, loga cada pacote (namespace, evento e ids) e inscreve
-o passageiro nos pedidos que o motorista recebe. Lê o mesmo `cmd/sockets/.env` do
-servidor (`SOCKET_URL`, padrão `ws://localhost:8080`, `SOCKET_DRIVERS_NAMESPACE`,
-`SOCKET_RIDERS_NAMESPACE` e `KAFKA_TOPIC_ORDER_REQUESTED`):
-
-```bash
-cd cmd/sockets && go run . client
-```
+O servidor Socket.IO (namespaces, salas, client de teste) está documentado no [fast-sockets](https://github.com/guilhermelinosp/fast-sockets); o publicador do outbox e o consumer de matching (em standby), no [fast-listeners](https://github.com/guilhermelinosp/fast-listeners).
 
 ## Observabilidade
 
@@ -135,32 +116,21 @@ e exportam traces, métricas e logs por OTLP/HTTP.
 - Identificadores como `order_id` ficam nos spans e nos logs, **nunca** em rótulos
   de métrica (gerariam uma série por pedido).
 
-## Matching (em standby)
-
-O consumer `internal/matching` escolhe um motorista disponível para cada pedido
-(lê a última linha de `driver_availability_history` com status `online`). Ele está
-**comentado** em `cmd/listeners/main.go`, e **nada grava a disponibilidade dos
-motoristas** ainda, então ele não teria um motorista para atribuir. Para
-religá-lo, descomente o bloco e dê aos motoristas um jeito de ficarem online.
-
 ## Estrutura
 
 ```text
-cmd/api         API HTTP
-cmd/listeners   outbox -> Kafka (matching em standby)
-cmd/sockets     Kafka -> Socket.IO
-platform/       middleware, erros, bootstrap e propagação de trace   (público)
-env/            leitura de variáveis de ambiente                    (público)
-events/         eventos de pedido publicados no Kafka               (público)
+cmd/api               API HTTP
+platform/             runtime: middleware, erros, bootstrap e propagação de trace   (público)
+env/                  leitura de variáveis de ambiente                              (público)
+events/               eventos de pedido publicados no Kafka                         (público)
 internal/orders       pedido (HTTP, serviço, repositório)
 internal/drivers      aceite do motorista
-internal/matching     escolha de motorista (standby)
-internal/listeners    outbox, NOTIFY e reconciliação
-internal/sockets      servidor Socket.IO e consumers
 ```
 
-Os pacotes públicos `platform`, `env` e `events` são a biblioteca compartilhada: o `fast-listeners` e o `fast-sockets`
-importam `github.com/guilhermelinosp/fast-platform/{platform,env,events}`.
+Os pacotes públicos `platform`, `env` e `events` são a **biblioteca compartilhada** da plataforma: o
+[fast-listeners](https://github.com/guilhermelinosp/fast-listeners) e o
+[fast-sockets](https://github.com/guilhermelinosp/fast-sockets) importam
+`github.com/guilhermelinosp/fast-platform/{platform,env,events}`.
 
 ## Desenvolvimento
 
