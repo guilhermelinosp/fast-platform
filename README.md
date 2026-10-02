@@ -34,11 +34,11 @@ obrigatória, o processo falha com um erro claro.
 | `KAFKA_BROKERS`, `KAFKA_SECURITY_PROTOCOL` | api | Conexão Kafka |
 | `KAFKA_TOPIC_ORDER_REQUESTED`, `KAFKA_TOPIC_ORDER_ACCEPTED` | api | Tópicos dos eventos |
 | `SOCKET_DRIVERS_NAMESPACE`, `SOCKET_RIDERS_NAMESPACE` | api | Namespaces Socket.IO |
-| `HELLNET_CACHE_CONNECTION`, `HELLNET_CACHE_ENABLE_L2`, `HELLNET_CACHE_DEFAULT_TTL` | api | Cache L1 (memória) e L2 (Redis), por exemplo `localhost:6379` |
+| `CACHE_CONNECTION`, `CACHE_ENABLE_L2`, `CACHE_DEFAULT_TTL` | api | Cache L1 (memória) e L2 (Redis), por exemplo `localhost:6379` |
 | `BODY_LIMIT`, `READ_TIMEOUT`, `WRITE_TIMEOUT`, `IDLE_TIMEOUT`, `READ_HEADER_TIMEOUT`, `SHUTDOWN_TIMEOUT`, `CORS_ALLOWED_ORIGINS`, `TRUSTED_PROXIES` | api | Limites e timeouts HTTP |
 
-> O cache lê as variáveis com o prefixo `HELLNET_CACHE_`; nomes sem o prefixo
-> (`CACHE_CONNECTION`) são ignorados e o L2 fica desligado.
+> O cache lê apenas variáveis com o prefixo `CACHE_`; os nomes antigos `HELLNET_CACHE_*`
+> são ignorados e o L2 fica desligado.
 
 ## Arquitetura
 
