@@ -1,4 +1,4 @@
-module github.com/guilhermelinosp/fast-platform-modular
+module github.com/guilhermelinosp/fast-platform
 
 go 1.27.0
 

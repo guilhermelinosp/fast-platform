@@ -1,13 +1,13 @@
-# fast-platform-modular
+# fast-platform
 
 Plataforma de corridas (ride-hailing) em Go, dividida em três binários que se
 comunicam por **PostgreSQL (outbox)** e **Kafka**. Um passageiro pede uma
 corrida, um motorista aceita, e cada passo chega em tempo real aos apps via
 **Socket.IO**.
 
-[![pipeline](https://github.com/guilhermelinosp/fast-platform-modular/actions/workflows/pipeline.yml/badge.svg)](https://github.com/guilhermelinosp/fast-platform-modular/actions/workflows/pipeline.yml)
-[![pr-check](https://github.com/guilhermelinosp/fast-platform-modular/actions/workflows/pr-check.yml/badge.svg)](https://github.com/guilhermelinosp/fast-platform-modular/actions/workflows/pr-check.yml)
-[![CodeQL](https://github.com/guilhermelinosp/fast-platform-modular/actions/workflows/codeql.yml/badge.svg)](https://github.com/guilhermelinosp/fast-platform-modular/actions/workflows/codeql.yml)
+[![pipeline](https://github.com/guilhermelinosp/fast-platform/actions/workflows/pipeline.yml/badge.svg)](https://github.com/guilhermelinosp/fast-platform/actions/workflows/pipeline.yml)
+[![pr-check](https://github.com/guilhermelinosp/fast-platform/actions/workflows/pr-check.yml/badge.svg)](https://github.com/guilhermelinosp/fast-platform/actions/workflows/pr-check.yml)
+[![CodeQL](https://github.com/guilhermelinosp/fast-platform/actions/workflows/codeql.yml/badge.svg)](https://github.com/guilhermelinosp/fast-platform/actions/workflows/codeql.yml)
 
 ## Arquitetura
 

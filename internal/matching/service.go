@@ -12,7 +12,7 @@ import (
 
 	"uuid"
 
-	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
+	"github.com/guilhermelinosp/fast-platform/internal/platform"
 )
 
 // offerCache is the context-first cache port used to coalesce matches per

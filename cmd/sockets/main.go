@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
-	"github.com/guilhermelinosp/fast-platform-modular/internal/sockets"
+	"github.com/guilhermelinosp/fast-platform/internal/platform"
+	"github.com/guilhermelinosp/fast-platform/internal/sockets"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 )
 

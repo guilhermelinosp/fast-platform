@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/guilhermelinosp/fast-platform-modular/internal/drivers"
-	"github.com/guilhermelinosp/fast-platform-modular/internal/orders"
-	"github.com/guilhermelinosp/fast-platform-modular/internal/platform"
+	"github.com/guilhermelinosp/fast-platform/internal/drivers"
+	"github.com/guilhermelinosp/fast-platform/internal/orders"
+	"github.com/guilhermelinosp/fast-platform/internal/platform"
 	"github.com/guilhermelinosp/hellnet-lib-cache/cache"
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
