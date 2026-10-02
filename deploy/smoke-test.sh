@@ -3,14 +3,14 @@
 #   API -> Postgres (outbox) -> listeners -> Redpanda -> sockets
 # e o cache (Redis) na leitura de pedidos.
 #   deploy/smoke-test.sh
-# Variaveis: API_HOST (padrao fast.hellnet.com.br), GATEWAY_IP (padrao 192.168.1.2: o Gateway hellnet do
-# cluster Talos; de fora de casa alcance pelo Cloudflare WARP), NS (padrao fast), WAIT (padrao 20,
-# segundos de espera por evento).
+# Variaveis: API_HOST (padrao fast.hellnet.com.br, resolvido pelo DNS interno; de fora de casa alcance
+# pelo Cloudflare WARP), GATEWAY_IP (opcional: forca o IP do Gateway em vez de resolver o nome),
+# NS (padrao fast), WAIT (padrao 20, segundos de espera por evento).
 set -uo pipefail
 
 NS="${NS:-fast}"
 API_HOST="${API_HOST:-fast.hellnet.com.br}"
-GATEWAY_IP="${GATEWAY_IP:-192.168.1.2}"
+GATEWAY_IP="${GATEWAY_IP:-}"
 WAIT="${WAIT:-20}"
 TOPIC_REQ="br.com.hellnet.fast.order.requested.v1"
 TOPIC_ACC="br.com.hellnet.fast.order.accepted.v1"
@@ -21,7 +21,9 @@ falha(){ printf 'FALHA %s\n' "$1"; FALHAS=$((FALHAS+1)); }
 check(){ # descricao esperado obtido
   if [ "$2" = "$3" ]; then ok "$1 -> $3"; else falha "$1 -> $3 (esperado $2)"; fi
 }
-http()  { curl -sk -m 15 --resolve "${API_HOST}:443:${GATEWAY_IP}" "$@"; }
+http()  {
+  if [ -n "$GATEWAY_IP" ]; then curl -sk -m 15 --resolve "${API_HOST}:443:${GATEWAY_IP}" "$@"; else curl -sk -m 15 "$@"; fi
+}
 code()  { http -o /dev/null -w '%{http_code}' "$@"; }
 hwm()   { kubectl exec -n tools redpanda-0 -c redpanda -- rpk topic describe "$1" -p 2>/dev/null | awk 'NR==2{print $NF}'; }
 espera_hwm() { # topico minimo

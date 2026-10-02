@@ -1,10 +1,11 @@
-# fast-platform no cluster Talos hellnet (192.168.1.2): api, listeners e sockets
+# fast-platform no cluster Talos hellnet: api, listeners e sockets
 # (uma imagem, tres entrypoints).
 #
 # Dependencias (ja existem no cluster): Postgres, Redis e Redpanda (ns tools)
 # e o Alloy (ns observability).
 # O Secret do banco NAO fica no git: crie com deploy/bootstrap-secrets.sh.
-# A imagem vem do registry local do cluster (192.168.1.2:5000), construida em
+# A imagem vem do registry local do cluster, por nome DNS interno
+# (registry.hellnet.com.br:5000, resolvido pelo /etc/hosts do no), construida em
 # linux/amd64 (o no e amd64; o Mac e arm64): veja `make fast` em ~/.talos/cluster.
 # O Gateway `hellnet` (kube-system) serve fast.hellnet.com.br e fast-sockets.hellnet.com.br.
 apiVersion: v1
@@ -63,7 +64,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: api
-          image: 192.168.1.2:5000/fast-platform:dev
+          image: registry.hellnet.com.br:5000/fast-platform:dev
           imagePullPolicy: Always
           command: ["/api"]
           envFrom:
@@ -123,7 +124,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: listeners
-          image: 192.168.1.2:5000/fast-platform:dev
+          image: registry.hellnet.com.br:5000/fast-platform:dev
           imagePullPolicy: Always
           command: ["/listeners"]
           envFrom:
@@ -171,7 +172,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: sockets
-          image: 192.168.1.2:5000/fast-platform:dev
+          image: registry.hellnet.com.br:5000/fast-platform:dev
           imagePullPolicy: Always
           command: ["/sockets"]
           envFrom:
