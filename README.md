@@ -153,7 +153,7 @@ Os hooks do [Lefthook](.lefthook.yml) rodam `gofmt`, `vet`, testes (com e sem `-
 | `auto-pr` | push em `feat/**` ou `fix/**` | abre o pull request automaticamente |
 | `dependabot-actions-auto-merge` | pull requests do Dependabot | faz auto-merge das atualizações de GitHub Actions |
 
-Os workflows chamam workflows reutilizáveis de [templates](https://github.com/guilhermelinosp/templates), fixados por SHA de commit. O release precisa do secret `HELLNET_ACTIONS_PRIVATE_KEY` e da variável `HELLNET_ACTIONS_CLIENT_ID`.
+Os workflows chamam workflows reutilizáveis de [templates](https://github.com/guilhermelinosp/templates) em `@latest`. O release precisa do secret `HELLNET_ACTIONS_PRIVATE_KEY` e da variável `HELLNET_ACTIONS_CLIENT_ID`.
 
 ## Contribuindo e licença
 
