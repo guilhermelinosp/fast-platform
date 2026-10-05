@@ -79,7 +79,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/guilhermelinosp/hellnet-lib-cache v1.6.0
 	github.com/guilhermelinosp/hellnet-lib-database v1.5.2
-	github.com/guilhermelinosp/hellnet-lib-telemetry v1.14.2
+	github.com/guilhermelinosp/hellnet-lib-telemetry v1.14.3
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
 	go.opentelemetry.io/otel v1.46.0

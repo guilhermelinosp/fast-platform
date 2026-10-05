@@ -69,8 +69,8 @@ github.com/guilhermelinosp/hellnet-lib-cache v1.6.0 h1:yTSzPaKYksthf43/IaHbQ95Ny
 github.com/guilhermelinosp/hellnet-lib-cache v1.6.0/go.mod h1:HCRx9qvwXnrWRX1O/4xciqPF+Eu4EB196KEK1buxJM8=
 github.com/guilhermelinosp/hellnet-lib-database v1.5.2 h1:pZIpf2abf9i3/Yk/sxUs8vr2AeZS86cAewo5RDXbNyg=
 github.com/guilhermelinosp/hellnet-lib-database v1.5.2/go.mod h1:FTAv73ukSVR4kT4oY9s1q1FGAGgk+Y6KYZjOHfp6pJI=
-github.com/guilhermelinosp/hellnet-lib-telemetry v1.14.2 h1:GrI3XC9qA4KfdwrEnVtwNQaMN5ymwp/rOa3ec7OwCfk=
-github.com/guilhermelinosp/hellnet-lib-telemetry v1.14.2/go.mod h1:e1QWaS0GxXqw7BdTunN0YruKH8vv878hpi9zIo8flKc=
+github.com/guilhermelinosp/hellnet-lib-telemetry v1.14.3 h1:zTa6upYAin5etyjzCt66fxWOp6JRXCLbGVnrXqcMW7k=
+github.com/guilhermelinosp/hellnet-lib-telemetry v1.14.3/go.mod h1:e1QWaS0GxXqw7BdTunN0YruKH8vv878hpi9zIo8flKc=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
 github.com/jackc/pgpassfile v1.0.0/go.mod h1:CEx0iS5ambNFdcRtxPj5JhEz+xB6uRky5eyVu/W2HEg=
 github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 h1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=
