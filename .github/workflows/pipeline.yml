@@ -46,8 +46,8 @@ jobs:
     with:
       version: ${{ needs.release.outputs.version }}
     secrets: inherit
-  cd:
-    name: cd
+  deployment:
+    name: deployment
     needs: [release, image]
     uses: guilhermelinosp/templates/.github/workflows/cd.yml@latest
     with:
