@@ -6,7 +6,6 @@ resources:
 - application.yaml
 labels:
 - pairs:
-    app.kubernetes.io/name: hellnet-service
     app.kubernetes.io/instance: fast-platform
   includeSelectors: false
 images:
