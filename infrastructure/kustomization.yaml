@@ -4,6 +4,7 @@ kind: Kustomization
 namespace: fast
 resources:
 - application.yaml
+- configmap.yml
 labels:
 - pairs:
     app.kubernetes.io/instance: fast-platform
