@@ -1,0 +1,19 @@
+# Aplicar uma vez no cluster (kubectl apply -f). Depois o ArgoCD segue este repositorio.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fast-platform
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/guilhermelinosp/fast-platform
+    targetRevision: main
+    path: infra/overlays/homelab
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: fast
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
