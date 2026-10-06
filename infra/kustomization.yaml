@@ -1,5 +1,7 @@
+# Tag da imagem: o workflow argocd ajusta (argocd app set --kustomize-image) ou edite aqui.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: fast
 resources:
 - deployment.yaml
 - service.yaml
@@ -12,3 +14,6 @@ labels:
     app.kubernetes.io/name: hellnet-service
     app.kubernetes.io/instance: fast-platform
   includeSelectors: false
+images:
+- name: ghcr.io/guilhermelinosp/fast-platform
+  newTag: v1.11.0
