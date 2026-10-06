@@ -2,7 +2,7 @@ name: infra-validate
 
 on:
   pull_request:
-    paths: ["infra/**"]
+    paths: ["infrastructure/**"]
 
 permissions:
   contents: read
@@ -11,4 +11,4 @@ jobs:
   validate:
     uses: guilhermelinosp/templates/.github/workflows/infra-validate.yml@latest
     with:
-      path: infra
+      path: infrastructure
