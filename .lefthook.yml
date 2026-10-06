@@ -61,9 +61,10 @@ pre-push:
     build:
       run: go build ./...
 
+# yamllint disable rule:line-length
 commit-msg:
   commands:
     conventional:
-      run: >-
-        grep -Eq "^(feat|fix|docs|style|refactor|perf|test|ci|chore|revert|ops)"
-        "(\(.+\))?!?: .+" {1}
+      run: |
+        grep -Eq "^(feat|fix|docs|style|refactor|perf|test|ci|chore|revert|ops|build)(\(.+\))?!?: .+" {1}
+# yamllint enable rule:line-length
