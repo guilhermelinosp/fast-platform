@@ -24,7 +24,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: fast-platform
-        image: ghcr.io/guilhermelinosp/fast-platform:v1.11.0
+        image: ghcr.io/guilhermelinosp/fast-platform
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
