@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: fast-platform-config
+  name: fast-platform
   namespace: fast
 data:
   CACHE_CONNECTION: redis.tools.svc.cluster.local:6379
