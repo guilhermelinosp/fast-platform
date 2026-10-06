@@ -29,6 +29,7 @@ jobs:
       argocd-server: ${{ vars.ARGOCD_SERVER }}
       gateway-ip: ${{ vars.K8S_API_HOST }}
       ts-client-id: ${{ vars.TS_CLIENT_ID }}
-      ts-audience: ${{ vars.TS_AUDIENCE }}
+      ts-audience: ${{ vars.TS_AUDIENCE }} # vazio = OAuth client com secret
     secrets:
       ARGOCD_TOKEN: ${{ secrets.ARGOCD_TOKEN }}
+      TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
