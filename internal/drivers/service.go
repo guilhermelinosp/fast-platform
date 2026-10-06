@@ -7,8 +7,8 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/guilhermelinosp/hellnet-lib-core/events"
 	"github.com/guilhermelinosp/fast-platform/internal/orders"
+	"github.com/guilhermelinosp/hellnet-lib-core/events"
 	"github.com/guilhermelinosp/hellnet-lib-core/platform"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"go.opentelemetry.io/otel/attribute"
