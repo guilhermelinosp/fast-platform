@@ -158,3 +158,7 @@ Os workflows chamam workflows reutilizáveis de [templates](https://github.com/g
 ## Contribuindo e licença
 
 Veja [CONTRIBUTING.md](CONTRIBUTING.md) e [SECURITY.md](SECURITY.md). Licença [Apache 2.0](LICENSE).
+
+## Deploy
+
+Cada release publica a imagem no GHCR e o job `cd` do `pipeline.yml` chama o hub de deploy do repositório `templates`, que entra no tailnet por OIDC e sincroniza a Application `fast-platform` no ArgoCD. A versão da imagem não fica no Git: o ArgoCD Image Updater acompanha as tags `vX.Y.Z`. Os manifests estão em `infrastructure/`.
