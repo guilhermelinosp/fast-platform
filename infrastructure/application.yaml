@@ -33,7 +33,7 @@ spec:
           protocol: TCP
         envFrom:
         - configMapRef:
-            name: fast-platform
+            name: fast-platform-config
         env:
         - name: HELLNET_SERVICE
           value: fast-platform
@@ -72,3 +72,21 @@ spec:
           capabilities:
             drop:
             - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fast-platform
+  labels:
+    app.kubernetes.io/name: hellnet-service
+    app.kubernetes.io/instance: fast-platform
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: hellnet-service
+    app.kubernetes.io/instance: fast-platform
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
