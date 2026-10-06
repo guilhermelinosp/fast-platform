@@ -1,0 +1,12 @@
+name: infra-validate
+
+on:
+  pull_request:
+    paths: ["infra/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    uses: guilhermelinosp/templates/.github/workflows/infra-validate.yml@latest

@@ -1,0 +1,35 @@
+name: argocd
+
+# Manual. A logica fica em guilhermelinosp/templates (argocd.yml@latest).
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Acao
+        type: choice
+        options: [get, diff, sync]
+        default: diff
+      tag:
+        description: Tag da imagem (ex. v1.2.3). Vazio = manter a atual.
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  argocd:
+    uses: guilhermelinosp/templates/.github/workflows/argocd.yml@latest
+    with:
+      app: fast-platform
+      image: ghcr.io/guilhermelinosp/fast-platform
+      tag: ${{ inputs.tag }}
+      action: ${{ inputs.action }}
+      argocd-server: ${{ vars.ARGOCD_SERVER }}
+      gateway-ip: ${{ vars.K8S_API_HOST }}
+      ts-client-id: ${{ vars.TS_CLIENT_ID }}
+      ts-audience: ${{ vars.TS_AUDIENCE }} # vazio = OAuth client com secret
+    secrets:
+      ARGOCD_TOKEN: ${{ secrets.ARGOCD_TOKEN }}
+      TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
