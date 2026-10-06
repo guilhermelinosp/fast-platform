@@ -46,3 +46,12 @@ jobs:
     with:
       version: ${{ needs.release.outputs.version }}
     secrets: inherit
+  cd:
+    name: cd
+    needs: [release, image]
+    uses: guilhermelinosp/templates/.github/workflows/cd.yml@latest
+    with:
+      app: fast-platform
+      version: ${{ needs.release.outputs.version }}
+      app-client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
+    secrets: inherit
