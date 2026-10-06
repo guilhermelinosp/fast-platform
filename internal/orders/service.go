@@ -9,8 +9,8 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/guilhermelinosp/fast-platform/events"
-	"github.com/guilhermelinosp/fast-platform/platform"
+	"github.com/guilhermelinosp/hellnet-lib-core/events"
+	"github.com/guilhermelinosp/hellnet-lib-core/platform"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"github.com/jackc/pgx/v5/pgconn"
 	"go.opentelemetry.io/otel/attribute"
