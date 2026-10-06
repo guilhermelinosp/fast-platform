@@ -10,3 +10,5 @@ permissions:
 jobs:
   validate:
     uses: guilhermelinosp/templates/.github/workflows/infra-validate.yml@latest
+    with:
+      path: infra

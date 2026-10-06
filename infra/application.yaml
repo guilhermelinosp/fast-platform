@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/guilhermelinosp/fast-platform
     targetRevision: main
-    path: infra/overlays/homelab
+    path: infra
   destination:
     server: https://kubernetes.default.svc
     namespace: fast
