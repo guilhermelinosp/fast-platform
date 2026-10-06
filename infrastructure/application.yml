@@ -32,7 +32,7 @@ spec:
           protocol: TCP
         envFrom:
         - configMapRef:
-            name: fast-platform-config
+            name: fast-platform
         env:
         - name: HELLNET_SERVICE
           value: fast-platform
