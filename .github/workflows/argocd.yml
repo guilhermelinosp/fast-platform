@@ -1,7 +1,6 @@
 name: argocd
 
-# CI -> tailnet (Tailscale) -> gateway 192.168.1.2 -> ArgoCD, via argocd CLI.
-# Manual: nada de deploy automatico. O deploy parte de infra/ deste repositorio.
+# Manual. A logica fica em guilhermelinosp/templates (argocd.yml@latest).
 on:
   workflow_dispatch:
     inputs:
@@ -11,63 +10,19 @@ on:
         options: [get, diff, sync]
         default: diff
       tag:
-        description: Tag da imagem a implantar (ex. v1.2.3). Vazio = manter a atual.
+        description: Tag da imagem (ex. v1.2.3). Vazio = manter a atual.
         type: string
         required: false
 
 permissions:
   contents: read
 
-concurrency:
-  group: argocd-fast-platform
-  cancel-in-progress: false
-
-env:
-  APP: fast-platform
-  IMAGE: ghcr.io/guilhermelinosp/fast-platform
-  ARGOCD_SERVER: argocd.hellnet.com.br
-  ARGOCD_VERSION: v3.5.3
-  ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_TOKEN }}
-
 jobs:
   argocd:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Validar tag
-        env:
-          TAG: ${{ inputs.tag }}
-        run: |
-          if [ -n "$TAG" ] && ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$'; then
-            echo "::error::tag invalida: $TAG"; exit 1
-          fi
-
-      - uses: tailscale/github-action@v4
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
-          args: --accept-routes
-          use-cache: "true"
-          ping: ${{ vars.K8S_API_HOST }}
-
-      - name: Resolver o nome do ArgoCD pelo gateway
-        run: echo "${{ vars.K8S_API_HOST }} ${ARGOCD_SERVER}" | sudo tee -a /etc/hosts
-
-      - name: Instalar argocd CLI
-        run: |
-          curl -fsSL -o argocd "https://github.com/argoproj/argo-cd/releases/download/${ARGOCD_VERSION}/argocd-linux-amd64"
-          sudo install -m 0755 argocd /usr/local/bin/argocd
-
-      - name: Ajustar a imagem (sem commit no Git)
-        if: inputs.tag != ''
-        env:
-          TAG: ${{ inputs.tag }}
-        run: argocd app set "$APP" --kustomize-image "$IMAGE=$IMAGE:$TAG" --grpc-web
-
-      - name: Executar
-        run: |
-          case "${{ inputs.action }}" in
-            get)  argocd app get  "$APP" --grpc-web ;;
-            diff) argocd app diff "$APP" --grpc-web || [ $? -eq 1 ] ;;
-            sync) argocd app sync "$APP" --grpc-web && argocd app wait "$APP" --health --timeout 300 --grpc-web ;;
-          esac
+    uses: guilhermelinosp/templates/.github/workflows/argocd.yml@latest
+    with:
+      app: fast-platform
+      image: ghcr.io/guilhermelinosp/fast-platform
+      tag: ${{ inputs.tag }}
+      action: ${{ inputs.action }}
+    secrets: inherit
