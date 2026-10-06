@@ -3,7 +3,7 @@ package drivers
 import (
 	"context"
 
-	"github.com/guilhermelinosp/fast-platform/platform"
+	"github.com/guilhermelinosp/hellnet-lib-core/platform"
 	"github.com/guilhermelinosp/hellnet-lib-database/database"
 )
 

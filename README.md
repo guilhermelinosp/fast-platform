@@ -120,17 +120,14 @@ e exportam traces, métricas e logs por OTLP/HTTP.
 
 ```text
 cmd/platform          API HTTP
-platform/             runtime: middleware, erros, bootstrap e propagação de trace   (público)
-env/                  leitura de variáveis de ambiente                              (público)
-events/               eventos de pedido publicados no Kafka                         (público)
 internal/orders       pedido (HTTP, serviço, repositório)
 internal/drivers      aceite do motorista
 ```
 
-Os pacotes públicos `platform`, `env` e `events` são a **biblioteca compartilhada** da plataforma: o
+O que é compartilhado entre os serviços (`platform`, `env` e `events`) mora no
+[hellnet-lib-core](https://github.com/guilhermelinosp/hellnet-lib-core), que o fast-platform, o
 [fast-listeners](https://github.com/guilhermelinosp/fast-listeners) e o
-[fast-sockets](https://github.com/guilhermelinosp/fast-sockets) importam
-`github.com/guilhermelinosp/fast-platform/{platform,env,events}`.
+[fast-sockets](https://github.com/guilhermelinosp/fast-sockets) importam. Os scripts de carga (k6) não ficam mais no repositório.
 
 ## Desenvolvimento
 

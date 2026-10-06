@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/guilhermelinosp/fast-platform/platform"
+	"github.com/guilhermelinosp/hellnet-lib-core/platform"
 	"github.com/guilhermelinosp/hellnet-lib-telemetry/telemetry"
 	"github.com/jackc/pgx/v5/pgconn"
 )
