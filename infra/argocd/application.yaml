@@ -5,7 +5,7 @@ metadata:
   name: fast-platform
   namespace: argocd
 spec:
-  project: default
+  project: fast
   source:
     repoURL: https://github.com/guilhermelinosp/fast-platform
     targetRevision: main

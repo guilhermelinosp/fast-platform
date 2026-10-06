@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   argocd:
@@ -25,4 +26,9 @@ jobs:
       image: ghcr.io/guilhermelinosp/fast-platform
       tag: ${{ inputs.tag }}
       action: ${{ inputs.action }}
-    secrets: inherit
+      argocd-server: ${{ vars.ARGOCD_SERVER }}
+      gateway-ip: ${{ vars.K8S_API_HOST }}
+      ts-client-id: ${{ vars.TS_CLIENT_ID }}
+      ts-audience: ${{ vars.TS_AUDIENCE }}
+    secrets:
+      ARGOCD_TOKEN: ${{ secrets.ARGOCD_TOKEN }}
