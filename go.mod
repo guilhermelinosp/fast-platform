@@ -79,10 +79,10 @@ require (
 
 require (
 	github.com/gin-gonic/gin v1.12.0
-	github.com/guilhermelinosp/hellnet-lib-cache v1.6.0
-	github.com/guilhermelinosp/hellnet-lib-core v1.1.1
-	github.com/guilhermelinosp/hellnet-lib-database v1.5.2
-	github.com/guilhermelinosp/hellnet-lib-telemetry v1.14.3
+	github.com/guilhermelinosp/hellnet-lib-cache v1.6.1
+	github.com/guilhermelinosp/hellnet-lib-core v1.1.2
+	github.com/guilhermelinosp/hellnet-lib-database v1.5.3
+	github.com/guilhermelinosp/hellnet-lib-telemetry v1.14.4
 	github.com/jackc/pgx/v5 v5.11.0
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
