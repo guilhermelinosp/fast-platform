@@ -67,10 +67,10 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 h1:Bd7KaOxzULLxtZ/K5s1aLbWhR0+
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0/go.mod h1:nN7ts3dFXKtCZWc//yfkpcQNKJABg16/uDVAZpLDalo=
 github.com/guilhermelinosp/hellnet-lib-cache v1.6.1 h1:+dU7PZZpdDgL/68Sv4UcKtfFXVFZPn5QG0luzJyaYbc=
 github.com/guilhermelinosp/hellnet-lib-cache v1.6.1/go.mod h1:WmDLrPxTQ+PIb6G/tShldLyM7mm2+X3g4MDGohz12yE=
-github.com/guilhermelinosp/hellnet-lib-core v1.1.2 h1:tWDOfPugNfiIS/ubQVERCo9sNqvp+tzpHpsX1VvN0gw=
-github.com/guilhermelinosp/hellnet-lib-core v1.1.2/go.mod h1:UJJuNDK08TqV+VBmnxwT+pGUriNZYi0TjNLEeW6mFqE=
-github.com/guilhermelinosp/hellnet-lib-database v1.5.3 h1:MjklP1BROGhqanghMa+QwROaNxf7HCeAFTiInFh8AKk=
-github.com/guilhermelinosp/hellnet-lib-database v1.5.3/go.mod h1:vj4EXP6fDNnzwNUNZ4COP9F5l24VfSE24NUFIjPos68=
+github.com/guilhermelinosp/hellnet-lib-core v1.2.0 h1:n+eSzAK2mt1FaymVytxndB2dU8JFlci7bfY5sNftoJo=
+github.com/guilhermelinosp/hellnet-lib-core v1.2.0/go.mod h1:yuWHEnLH+S17JCjMUfQuTcz5LzaLyjGEFZQdDsir/Co=
+github.com/guilhermelinosp/hellnet-lib-database v1.6.0 h1:HrL3Swi2t6Du1jRxChfBAWZ9MIE0QpZuJ8htDtkJ8IU=
+github.com/guilhermelinosp/hellnet-lib-database v1.6.0/go.mod h1:aK2s+rh3OKNMABeHc0vt+neR6UzZYzcSY3riegvNxb0=
 github.com/guilhermelinosp/hellnet-lib-telemetry v1.14.4 h1:HyhGeogXeCNNpz02+KG2lkWOPKCLN7yJzU3fUDlWPzY=
 github.com/guilhermelinosp/hellnet-lib-telemetry v1.14.4/go.mod h1:e1QWaS0GxXqw7BdTunN0YruKH8vv878hpi9zIo8flKc=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
